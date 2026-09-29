@@ -41,6 +41,12 @@ Item {
                 iconName: "cloud",
                 text: Tr.tr("Weather"),
                 enabled: Config.dashboard.showWeather
+            },
+            {
+                component: todoComponent,
+                iconName: "checklist",
+                text: Tr.tr("Todo"),
+                enabled: true
             }
         ];
         return allTabs.filter(tab => tab.enabled);
@@ -180,6 +186,12 @@ Item {
                 id: weatherComponent
 
                 WeatherTab {}
+            }
+
+            Component {
+                id: todoComponent
+
+                Todo {}
             }
 
             Behavior on contentX {
