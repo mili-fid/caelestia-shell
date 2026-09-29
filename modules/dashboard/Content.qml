@@ -41,15 +41,9 @@ Item {
                 iconName: "cloud",
                 text: Tr.tr("Weather"),
                 enabled: Config.dashboard.showWeather
-            },
-            {
-                component: notesComponent,
-                iconName: "edit_note",
-                text: Tr.tr("Notes"),
-                enabled: true
             }
         ];
-        return allTabs.filter(tab => tab.enabled);
+        return allTabs.filter(tab => tab.enabled).concat(plugins.tabs);
     }
 
     readonly property real nonAnimWidth: view.implicitWidth + viewWrapper.anchors.margins * 2
@@ -58,8 +52,16 @@ Item {
     implicitWidth: nonAnimWidth
     implicitHeight: nonAnimHeight
 
-    Tabs {
+    PluginLoader {
+        id: plugins
+    }
+
+    // Tab buttons added to an existing tab bar don't render, so rebuild it whenever plugins change the tab list
+    Loader {
         id: tabs
+
+        readonly property int count: (item as Tabs)?.count ?? 0
+        readonly property var tabList: root.dashboardTabs
 
         anchors.top: parent.top
         anchors.left: parent.left
@@ -67,9 +69,16 @@ Item {
         anchors.topMargin: CUtils.clamp(anchors.margins - Config.border.thickness, 0, anchors.margins)
         anchors.margins: Tokens.padding.large
 
-        nonAnimWidth: root.nonAnimWidth - anchors.margins * 2
-        screenState: root.screenState
-        tabs: root.dashboardTabs
+        onTabListChanged: {
+            active = false;
+            active = true;
+        }
+
+        sourceComponent: Tabs {
+            nonAnimWidth: root.nonAnimWidth - tabs.anchors.margins * 2
+            screenState: root.screenState
+            tabs: tabs.tabList
+        }
     }
 
     ClippingRectangle {
@@ -147,6 +156,10 @@ Item {
                         Layout.alignment: Qt.AlignTop
 
                         sourceComponent: modelData.component
+                        onStatusChanged: {
+                            if (status === Loader.Error && modelData.pluginId)
+                                plugins.markFailed(modelData.pluginId, "The tab could not be created, see the shell log for details");
+                        }
 
                         Component.onCompleted: active = Qt.binding(() => {
                             if (index === view.currentIndex)
@@ -186,12 +199,6 @@ Item {
                 id: weatherComponent
 
                 WeatherTab {}
-            }
-
-            Component {
-                id: notesComponent
-
-                Notes {}
             }
 
             Behavior on contentX {
