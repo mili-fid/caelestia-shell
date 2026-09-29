@@ -43,9 +43,9 @@ Item {
                 enabled: Config.dashboard.showWeather
             },
             {
-                component: todoComponent,
-                iconName: "checklist",
-                text: Tr.tr("Todo"),
+                component: notesComponent,
+                iconName: "edit_note",
+                text: Tr.tr("Notes"),
                 enabled: true
             }
         ];
@@ -189,9 +189,9 @@ Item {
             }
 
             Component {
-                id: todoComponent
+                id: notesComponent
 
-                Todo {}
+                Notes {}
             }
 
             Behavior on contentX {
