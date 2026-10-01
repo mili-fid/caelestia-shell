@@ -41,6 +41,14 @@ Item {
         Anim {}
     }
 
+    // Plugins stay loaded while the dashboard is closed, so their tabs are ready as soon as it opens.
+    // Loaded separately so a problem with plugins can never break the built-in tabs.
+    Loader {
+        id: pluginHost
+
+        source: "PluginLoader.qml"
+    }
+
     Loader {
         id: content
 
@@ -52,6 +60,7 @@ Item {
         sourceComponent: Content {
             screenState: root.screenState
             facePicker: root.facePicker
+            plugins: pluginHost.item
         }
     }
 }
