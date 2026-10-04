@@ -248,6 +248,13 @@ StyledWindow {
         }
     }
 
+    TopInfo {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.horizontalCenterOffset: (bar.implicitWidth - root.borderThickness) / 2
+        topSpace: root.borderLayoutThickness + 10
+        opacity: panels.dashboard.offsetScale * (1 - root.fsTransitionProg)
+    }
+
     Interactions {
         id: interactions
 
