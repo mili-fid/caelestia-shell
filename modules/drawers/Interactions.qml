@@ -16,6 +16,7 @@ CustomMouseArea {
     required property Panels panels
     required property Bar.BarWrapper bar
     required property real borderThickness
+    required property real topThickness
     required property bool fullscreen
 
     property point dragStart
@@ -24,7 +25,7 @@ CustomMouseArea {
     property bool utilitiesShortcutActive
 
     function withinPanelHeight(panel: Item, x: real, y: real): bool {
-        const panelY = root.borderThickness + panel.y;
+        const panelY = root.topThickness + panel.y;
         return y >= panelY - Config.border.rounding && y <= panelY + panel.height + Config.border.rounding;
     }
 
@@ -43,7 +44,7 @@ CustomMouseArea {
 
     function inTopPanel(panel: Item, x: real, y: real): bool {
         const panelHeight = panel.height * (1 - (panel.offsetScale ?? 0)); // qmllint disable missing-property
-        return y < Math.max(Config.border.minThickness, Config.border.thickness + panelHeight) && withinPanelWidth(panel, x, y);
+        return y < Math.max(Config.border.minThickness, root.topThickness + panelHeight) && withinPanelWidth(panel, x, y);
     }
 
     function inBottomPanel(panel: Item, x: real, y: real, isCorner = false): bool {
@@ -135,7 +136,7 @@ CustomMouseArea {
 
             // Show sidebar on hover (top-right corner, bounded by notification panel height)
             if (Config.sidebar.showOnHover) {
-                const sidebarTriggerY = Math.max(Config.sidebar.minHoverThreshold, panels.notifications.y + panels.notifications.height + borderThickness);
+                const sidebarTriggerY = Math.max(Config.sidebar.minHoverThreshold, panels.notifications.y + panels.notifications.height + topThickness);
                 const showSidebarHover = x > Math.min(width - Config.border.minThickness, bar.implicitWidth + panels.sidebar.x) && y <= sidebarTriggerY;
                 if (showSidebarHover && !screenState.sidebar)
                     screenState.sidebar = true;
@@ -180,7 +181,7 @@ CustomMouseArea {
 
             // Show/hide sidebar on hover
             if (Config.sidebar.showOnHover && !pressed) {
-                const sidebarTriggerY = Math.max(Config.sidebar.minHoverThreshold, panels.notifications.y + panels.notifications.height + borderThickness);
+                const sidebarTriggerY = Math.max(Config.sidebar.minHoverThreshold, panels.notifications.y + panels.notifications.height + topThickness);
                 const showSidebarHover = x > Math.min(width - Config.border.minThickness, bar.implicitWidth + panels.sidebar.x) && y <= sidebarTriggerY;
                 if (showSidebarHover && !screenState.sidebar) {
                     screenState.sidebar = true;

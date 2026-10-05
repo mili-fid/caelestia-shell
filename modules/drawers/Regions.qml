@@ -14,17 +14,18 @@ Region {
 
     readonly property real borderThickness: win.contentItem.Config.border.thickness
     readonly property real clampedThickness: win.contentItem.Config.border.clampedThickness
+    readonly property real topThickness: win.topBorderBase
 
     x: bar.clampedWidth + win.dragMaskPadding
-    y: clampedThickness + win.dragMaskPadding
+    y: topThickness + win.dragMaskPadding
     width: win.width - bar.clampedWidth - clampedThickness - win.dragMaskPadding * 2
-    height: win.height - clampedThickness * 2 - win.dragMaskPadding * 2
+    height: win.height - topThickness - clampedThickness - win.dragMaskPadding * 2
     intersection: Intersection.Xor
 
     R {
         panel: root.panels.dashboard
         y: 0
-        height: panel.height * (1 - root.panels.dashboard.offsetScale) + root.borderThickness
+        height: panel.height * (1 - root.panels.dashboard.offsetScale) + root.topThickness
     }
 
     R {
@@ -58,7 +59,7 @@ Region {
     R {
         panel: root.panels.notifications
         y: 0
-        height: panel.height + root.borderThickness
+        height: panel.height + root.topThickness
     }
 
     R {
@@ -76,7 +77,7 @@ Region {
         required property Item panel
 
         x: panel.x + root.bar.implicitWidth
-        y: panel.y + root.borderThickness
+        y: panel.y + root.topThickness
         width: panel.width
         height: panel.height
         intersection: Intersection.Subtract

@@ -11,6 +11,7 @@ Scope {
 
     required property ShellScreen screen
     required property Bar.BarWrapper bar
+    required property int topThickness
 
     ExclusionZone {
         anchors.left: true
@@ -19,6 +20,7 @@ Scope {
 
     ExclusionZone {
         anchors.top: true
+        exclusiveZone: root.topThickness
     }
 
     ExclusionZone {

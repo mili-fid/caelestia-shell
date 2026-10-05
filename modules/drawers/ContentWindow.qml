@@ -41,6 +41,10 @@ StyledWindow {
     readonly property real borderRounding: contentItem.Config.border.rounding * (1 - fsTransitionProg)
     readonly property real shadowOpacity: 0.7 * (1 - fsTransitionProg)
     readonly property real borderLayoutThickness: hasFullscreen ? 0 : contentItem.Config.border.thickness
+    // Taller top border that holds the date/time/weather row (TopInfo); other borders are unchanged
+    readonly property int topBorderBase: Math.max(contentItem.Config.border.thickness, 28)
+    readonly property real topBorderThickness: topBorderBase * (1 - fsTransitionProg)
+    readonly property real topBorderLayoutThickness: hasFullscreen ? 0 : topBorderBase
 
     property color surfaceColour: Colours.tPalette.m3surface
 
@@ -89,13 +93,13 @@ StyledWindow {
         id: emptyRegion
 
         x: panels.notifications.x + bar.implicitWidth
-        y: panels.notifications.y + root.borderThickness
+        y: panels.notifications.y + root.topBorderThickness
         width: panels.notifications.width
         height: panels.notifications.height
 
         Region {
             x: root.width - width
-            y: panels.osdWrapper.y + root.borderThickness
+            y: panels.osdWrapper.y + root.topBorderThickness
             width: panels.osdWrapper.width * (1 - panels.osd.offsetScale) + root.borderThickness
             height: panels.osd.height
         }
@@ -170,7 +174,7 @@ StyledWindow {
             radius: root.borderRounding
             borderLeft: bar.implicitWidth - anchors.margins - root.sdfBorderOffset
             borderRight: root.borderThickness - anchors.margins - root.sdfBorderOffset
-            borderTop: root.borderThickness - anchors.margins - root.sdfBorderOffset
+            borderTop: root.topBorderThickness - anchors.margins - root.sdfBorderOffset
             borderBottom: root.borderThickness - anchors.margins - root.sdfBorderOffset
         }
 
@@ -251,8 +255,8 @@ StyledWindow {
     TopInfo {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.horizontalCenterOffset: (bar.implicitWidth - root.borderThickness) / 2
-        topSpace: root.borderLayoutThickness + 10
-        opacity: panels.dashboard.offsetScale * (1 - root.fsTransitionProg)
+        y: Math.round((root.topBorderBase - height) / 2)
+        shownOpacity: panels.dashboard.offsetScale * (1 - root.fsTransitionProg)
     }
 
     Interactions {
@@ -264,6 +268,7 @@ StyledWindow {
         panels: panels
         bar: bar
         borderThickness: root.borderLayoutThickness
+        topThickness: root.topBorderLayoutThickness
         fullscreen: root.hasFullscreen
 
         Panels {
@@ -273,6 +278,7 @@ StyledWindow {
             screenState: root.screenState
             bar: bar
             borderThickness: root.borderThickness
+            topThickness: root.topBorderThickness
 
             utilities.horizontalStretch: (sidebarBg.rawDeformMatrix.m11 - 1) / 2 + 1
             utilities.deformMatrix: utilsBg.rawDeformMatrix
@@ -347,7 +353,7 @@ StyledWindow {
 
         group: blobGroup
         x: panel.x + bar.implicitWidth
-        y: panel.y + root.borderThickness
+        y: panel.y + root.topBorderThickness
         implicitWidth: panel.width
         implicitHeight: panel.height
         radius: Tokens.rounding.extraLarge
