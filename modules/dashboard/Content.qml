@@ -37,10 +37,10 @@ Item {
                 enabled: Config.dashboard.showPerformance
             },
             {
-                component: weatherComponent,
-                iconName: "cloud",
-                text: Tr.tr("Weather"),
-                enabled: Config.dashboard.showWeather
+                component: timerComponent,
+                iconName: "timer",
+                text: Tr.tr("Timer"),
+                enabled: true
             },
             {
                 component: notesComponent,
@@ -183,9 +183,9 @@ Item {
             }
 
             Component {
-                id: weatherComponent
+                id: timerComponent
 
-                WeatherTab {}
+                TimerTab {}
             }
 
             Component {
