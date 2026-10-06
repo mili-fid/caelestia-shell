@@ -34,12 +34,12 @@ GridLayout {
         Layout.row: 0
         Layout.columnSpan: 2
         Layout.preferredWidth: Tokens.sizes.dashboard.weatherWidth
-        Layout.preferredHeight: weather.implicitHeight
+        Layout.preferredHeight: timer.implicitHeight
 
         radius: Tokens.rounding.extraLarge * 1.5
 
-        SmallWeather {
-            id: weather
+        TimerCard {
+            id: timer
         }
     }
 
