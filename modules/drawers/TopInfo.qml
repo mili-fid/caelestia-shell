@@ -9,12 +9,19 @@ import qs.services
 
 // Date · time · weather row drawn inside the (taller) top border of the frame.
 // Purely visual: no mouse handling, so hover-to-open-dashboard is unaffected.
+// Makes room on its right for the timer pill (TimerPill), which sits in pillSlot.
 Item {
     id: root
 
     // Opacity requested by the parent (dashboard/fullscreen fade), combined with the startup fade-in
     property real shownOpacity: 1
     property real startupProgress: 0
+
+    // Width of the timer pill, and how much room to make for it (0-1)
+    property real pillWidth
+    property real pillRoom
+    readonly property alias pillSlot: pillSlot
+    readonly property real reserved: (pillWidth + Tokens.spacing.medium) * pillRoom
 
     implicitWidth: row.implicitWidth
     implicitHeight: row.implicitHeight
@@ -46,6 +53,7 @@ Item {
         id: row
 
         anchors.centerIn: parent
+        anchors.horizontalCenterOffset: -root.reserved / 2 // Keep date/time and the pill centred together
         spacing: Tokens.spacing.medium
 
         Segment {
@@ -69,6 +77,16 @@ Item {
             icon: Weather.icon
             text: Weather.temp
         }
+    }
+
+    Item {
+        id: pillSlot
+
+        anchors.left: row.right
+        anchors.leftMargin: Tokens.spacing.medium * root.pillRoom
+        anchors.verticalCenter: row.verticalCenter
+        width: root.pillWidth
+        height: row.height
     }
 
     component Segment: Row {

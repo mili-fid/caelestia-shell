@@ -253,10 +253,21 @@ StyledWindow {
     }
 
     TopInfo {
+        id: topInfo
+
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.horizontalCenterOffset: (bar.implicitWidth - root.borderThickness) / 2
         y: Math.round((root.topBorderBase - height) / 2)
         shownOpacity: panels.dashboard.offsetScale * (1 - root.fsTransitionProg)
+        pillWidth: timerPill.width
+        pillRoom: timerPill.presence * timerPill.closed
+    }
+
+    TimerStrip {
+        x: bar.implicitWidth + root.borderRounding
+        y: root.topBorderThickness - height
+        width: root.width - bar.implicitWidth - root.borderThickness - root.borderRounding * 2
+        pill: timerPill
     }
 
     Interactions {
@@ -321,6 +332,17 @@ StyledWindow {
 
             fullscreen: root.hasFullscreen
         }
+    }
+
+    // Above the panels, so it can fly in and out of the dashboard
+    TimerPill {
+        id: timerPill
+
+        screenState: root.screenState
+        dashboard: panels.dashboard
+        slot: topInfo.pillSlot
+        fsProgress: root.fsTransitionProg
+        borderHeight: root.topBorderBase
     }
 
     ShellState.ComponentRef {

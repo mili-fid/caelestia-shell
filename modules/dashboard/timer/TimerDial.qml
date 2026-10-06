@@ -56,7 +56,12 @@ StyledRect {
     color: Colours.tPalette.m3surfaceContainer
 
     onProgressChanged: syncRing(true)
+    Component.onDestruction: {
+        if (TimerState.dialDigits === digitsRow)
+            TimerState.dialDigits = null;
+    }
     Component.onCompleted: {
+        TimerState.dialDigits = digitsRow;
         syncRing(false);
         if (TimerState.finished)
             acknowledgeTimer.start();
@@ -143,7 +148,10 @@ StyledRect {
         }
 
         Row {
+            id: digitsRow
+
             Layout.alignment: Qt.AlignHCenter
+            opacity: 1 - TimerState.dialHandoff // Hidden while the top-border pill is flying in its place
 
             Digits {
                 visible: root.showHours

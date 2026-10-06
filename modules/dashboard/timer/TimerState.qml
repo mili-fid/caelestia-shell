@@ -25,6 +25,10 @@ Singleton {
 
     property real now: Date.now()
 
+    // For the top-border pill: the dial's digits it flies to and from, and how far it has taken their place (0-1)
+    property Item dialDigits
+    property real dialHandoff
+
     readonly property real remaining: timerRunning ? Math.max(0, endTime - now) : remainingAtPause
     readonly property real elapsed: swRunning ? now - startTime : elapsedAtPause
     readonly property bool running: stopwatch ? swRunning : timerRunning
