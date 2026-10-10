@@ -17,9 +17,13 @@ Item {
 
     property bool hovered
     readonly property Brightness.Monitor monitor: Brightness.getMonitorForScreen(root.screen)
-    readonly property bool shouldBeActive: screenState.osd && Config.osd.enabled && !((screenState.dashboard || screenState.dashboardNotch) && Config.dashboard.enabled) // Shares the spot with the dashboard notch
-    property real offsetScale: shouldBeActive ? 0 : 1
-    readonly property real presence: Math.max(0, Math.min(1, 1 - offsetScale))
+    property bool blocked // The dashboard shape is out: they share the spot, so this waits until it has gone
+    readonly property bool shouldBeActive: screenState.osd && Config.osd.enabled && !blocked && !((screenState.dashboard || screenState.dashboardNotch) && Config.dashboard.enabled)
+    // Same drop as the dashboard notch: a spring that overshoots past 1 on the way in, spent stretching the shape
+    property real drop: shouldBeActive ? 1 : 0
+    readonly property real presence: Math.max(0, Math.min(1, drop))
+    readonly property real stretch: Math.max(0, drop - 1)
+    readonly property real offsetScale: 1 - presence
 
     readonly property int notchWidth: 300
     readonly property int notchHeight: 38
@@ -51,17 +55,18 @@ Item {
             timer.restart();
     }
 
-    visible: offsetScale < 1
+    visible: drop > 0
     clip: true
 
-    // Grows down out of the border and outwards; the spatial easing overshoots, so it springs
-    anchors.topMargin: (-notchHeight - 5) * offsetScale
-    implicitWidth: notchWidth * (0.55 + 0.45 * (1 - offsetScale))
-    implicitHeight: notchHeight
+    // Grows out of the border's edge and outwards, like the dashboard notch
+    implicitWidth: notchWidth * (0.6 + 0.4 * presence) + stretch * 120
+    implicitHeight: notchHeight * presence + stretch * 60
 
-    Behavior on offsetScale {
-        Anim {
-            type: root.shouldBeActive ? Anim.DefaultSpatial : Anim.Emphasized
+    Behavior on drop {
+        SpringAnimation {
+            spring: root.shouldBeActive ? 3.2 : 5
+            damping: root.shouldBeActive ? 0.26 : 0.55
+            epsilon: 0.002
         }
     }
 
@@ -116,7 +121,8 @@ Item {
     }
 
     Loader {
-        anchors.centerIn: parent
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
 
         active: root.shouldBeActive || root.visible
         opacity: Math.max(0, root.presence * 2 - 1)

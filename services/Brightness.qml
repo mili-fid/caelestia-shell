@@ -59,9 +59,42 @@ Singleton {
             monitor.setBrightness(monitor.brightness - GlobalConfig.services.brightnessIncrement);
     }
 
+    // Brightness keys. On this laptop they only come through ACPI (video-bus): every pulse is an instant
+    // press+release, re-sent about every 0.5s while held, with no release signal. So nothing may run after a pulse
+    // (it would overshoot once the key is let go): each pulse applies one step straight away. Taps are always one
+    // step; pulses on the firmware's steady hold rhythm grow the step so a hold still moves quickly.
+    function stepKey(direction: int): void {
+        const now = Date.now();
+        const gap = now - keyHold.lastPulse;
+        const holding = direction === keyHold.direction && gap >= keyHold.holdGapMin && gap <= keyHold.holdGapMax;
+        keyHold.pulses = holding ? keyHold.pulses + 1 : 0;
+        keyHold.direction = direction;
+        keyHold.lastPulse = now;
+
+        const monitor = getMonitor("active");
+        if (!monitor)
+            return;
+        const base = GlobalConfig.services.brightnessIncrement;
+        const step = Math.min(base * (1 + keyHold.pulses), keyHold.maxStep); // 2%, then 4%, 6%, 8%, 10%
+        // From the pending target, so quick pulses add up even while the hardware catches up
+        monitor.setBrightness(monitor.brightness + direction * step);
+    }
+
     onMonitorsChanged: {
         ddcMonitors = [];
         ddcProc.running = true;
+    }
+
+    QtObject {
+        id: keyHold
+
+        // The firmware re-sends a held key every ~470-510ms; human taps on this laptop come faster (~200-400ms)
+        readonly property int holdGapMin: 430
+        readonly property int holdGapMax: 600
+        readonly property real maxStep: 0.1
+        property int direction
+        property real lastPulse
+        property int pulses
     }
 
     Variants {
@@ -116,6 +149,11 @@ Singleton {
         // Allows searching by active/model/serial/id/name
         function getFor(query: string): real {
             return root.getMonitor(query)?.brightness ?? -1;
+        }
+
+        // For the brightness keys: "up" or "down", one step per call, repeating while the calls keep coming
+        function step(direction: string): void {
+            root.stepKey(direction === "down" ? -1 : 1);
         }
 
         function set(value: string): string {
@@ -196,6 +234,28 @@ Singleton {
             }
         }
 
+        // Never queues: one brightnessctl runs at a time; anything asked for meanwhile collapses into the newest
+        // target, applied once it finishes. `brightness` (what the OSD shows) is already the target
+        property int pendingWrite: -1
+        readonly property Process writeProc: Process {
+            onExited: {
+                if (monitor.pendingWrite >= 0) {
+                    const next = monitor.pendingWrite;
+                    monitor.pendingWrite = -1;
+                    monitor.writeBacklight(next);
+                }
+            }
+        }
+
+        function writeBacklight(percent: int): void {
+            if (writeProc.running) {
+                pendingWrite = percent;
+                return;
+            }
+            writeProc.command = ["brightnessctl", "-q", "s", `${percent}%`];
+            writeProc.running = true;
+        }
+
         function setBrightness(value: real): void {
             value = Math.max(0, Math.min(1, value));
             const rounded = Math.round(value * 100);
@@ -214,7 +274,7 @@ Singleton {
             else if (isDdc)
                 Quickshell.execDetached(["ddcutil", "-b", busNum, "setvcp", "10", rounded]);
             else
-                Quickshell.execDetached(["brightnessctl", "s", `${rounded}%`]);
+                monitor.writeBacklight(rounded);
 
             if (isDdc)
                 timer.restart();

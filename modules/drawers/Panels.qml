@@ -45,6 +45,7 @@ Item {
 
         screen: root.screen
         screenState: root.screenState
+        blocked: dashboard.visible
 
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter

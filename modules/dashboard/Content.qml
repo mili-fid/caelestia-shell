@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Widgets
-import Caelestia
 import Caelestia.Config
 import qs.components
 
@@ -15,6 +14,7 @@ Item {
 
     // Icons and labels come from the wrapper, which shares them with the small notch
     required property var tabInfo
+    readonly property alias view: view
     // Off while morphing out of the notch, so the picked tab shows straight away instead of sliding in
     property bool animate: true
     readonly property var dashboardTabs: {
@@ -24,34 +24,28 @@ Item {
             }, tab));
     }
 
-    readonly property real nonAnimWidth: view.implicitWidth + viewWrapper.anchors.margins * 2
-    readonly property real nonAnimHeight: tabs.implicitHeight + tabs.anchors.topMargin + view.implicitHeight + viewWrapper.anchors.margins * 2
+    // Pages load asynchronously: keep the last ready page's size while the next one builds, so it never collapses
+    property real pageWidth
+    property real pageHeight
 
-    implicitWidth: nonAnimWidth
-    implicitHeight: nonAnimHeight
+    implicitWidth: pageWidth
+    implicitHeight: pageHeight
 
-    Tabs {
-        id: tabs
-
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.topMargin: CUtils.clamp(anchors.margins - Config.border.thickness, 0, anchors.margins)
-        anchors.margins: Tokens.padding.large
-
-        nonAnimWidth: root.nonAnimWidth - anchors.margins * 2
-        screenState: root.screenState
-        tabs: root.dashboardTabs
+    Binding on pageWidth {
+        when: (root.view.currentItem as Loader)?.status === Loader.Ready
+        value: root.view.implicitWidth
+        restoreMode: Binding.RestoreNone
     }
 
-    ClippingRectangle {
-        id: viewWrapper
+    Binding on pageHeight {
+        when: (root.view.currentItem as Loader)?.status === Loader.Ready
+        value: root.view.implicitHeight
+        restoreMode: Binding.RestoreNone
+    }
 
-        anchors.top: tabs.bottom
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.margins: Tokens.padding.large
+    // The tab strip is the notch's tile row (NotchMenu), which stays on top of this in the wrapper
+    ClippingRectangle {
+        anchors.fill: parent
 
         radius: Tokens.rounding.large
         color: "transparent"
@@ -82,7 +76,7 @@ Item {
 
                 const x = contentX - currentItem.x;
                 if (x > currentItem.implicitWidth / 2)
-                    root.screenState.dashboardTab = Math.min(root.screenState.dashboardTab + 1, tabs.count - 1);
+                    root.screenState.dashboardTab = Math.min(root.screenState.dashboardTab + 1, root.tabInfo.length - 1);
                 else if (x < -currentItem.implicitWidth / 2)
                     root.screenState.dashboardTab = Math.max(root.screenState.dashboardTab - 1, 0);
             }
@@ -93,7 +87,7 @@ Item {
 
                 const x = contentX - currentItem.x;
                 if (x > currentItem.implicitWidth / 10)
-                    root.screenState.dashboardTab = Math.min(root.screenState.dashboardTab + 1, tabs.count - 1);
+                    root.screenState.dashboardTab = Math.min(root.screenState.dashboardTab + 1, root.tabInfo.length - 1);
                 else if (x < -currentItem.implicitWidth / 10)
                     root.screenState.dashboardTab = Math.max(root.screenState.dashboardTab - 1, 0);
                 else
@@ -118,6 +112,7 @@ Item {
 
                         Layout.alignment: Qt.AlignTop
 
+                        asynchronous: true // Built over a few frames, so the morph out of the notch doesn't stall
                         sourceComponent: modelData.component
 
                         Component.onCompleted: active = Qt.binding(() => {
@@ -155,17 +150,5 @@ Item {
                 Anim {}
             }
         }
-    }
-
-    Behavior on implicitWidth {
-        enabled: root.animate
-
-        Anim {}
-    }
-
-    Behavior on implicitHeight {
-        enabled: root.animate
-
-        Anim {}
     }
 }
