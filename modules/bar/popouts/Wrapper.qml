@@ -150,7 +150,10 @@ Item {
         }
     }
 
+    // Popouts open downwards from the top border, so only the width jumps when opening
     Behavior on implicitWidth {
+        enabled: root.offsetScale < 1
+
         Anim {
             duration: root.animLength
             easing: root.animCurve
@@ -158,8 +161,6 @@ Item {
     }
 
     Behavior on implicitHeight {
-        enabled: root.offsetScale < 1
-
         Anim {
             duration: root.animLength
             easing: root.animCurve

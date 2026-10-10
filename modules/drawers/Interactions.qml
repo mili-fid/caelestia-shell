@@ -15,6 +15,7 @@ CustomMouseArea {
     required property ScreenState screenState
     required property Panels panels
     required property Bar.BarWrapper bar
+    required property TopBar topBar
     required property real borderThickness
     required property real topThickness
     required property bool fullscreen
@@ -39,6 +40,11 @@ CustomMouseArea {
 
     function inRightPanel(panel: Item, x: real, y: real): bool {
         return x > Math.min(width - Config.border.minThickness, bar.implicitWidth + panel.x) && withinPanelHeight(panel, x, y);
+    }
+
+    function inPopout(x: real, y: real): bool {
+        const panel = panels.popoutsWrapper;
+        return y < root.topThickness + panel.y + panel.height + Config.border.rounding && withinPanelWidth(panel, x, y);
     }
 
     function inTopPanel(panel: Item, x: real, y: real): bool {
@@ -72,10 +78,13 @@ CustomMouseArea {
             if (!utilitiesShortcutActive)
                 screenState.utilities = false;
 
-            if (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) {
-                popouts.hasCurrent = false;
-                bar.closeTray();
-            }
+            // Deferred, so moving onto the top border icons (which take the hover) keeps their popout open
+            Qt.callLater(() => {
+                if (!containsMouse && !topBar.hovered && (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1)) {
+                    popouts.hasCurrent = false;
+                    bar.closeTray();
+                }
+            });
 
             if (Config.bar.showOnHover)
                 bar.isHovered = false;
@@ -203,10 +212,10 @@ CustomMouseArea {
             utilitiesShortcutActive = false;
         }
 
-        // Show popouts on hover
-        if (x < bar.implicitWidth) {
-            bar.checkPopout(y);
-        } else if ((!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) && !inLeftPanel(panels.popoutsWrapper, x, y)) {
+        // Hide popouts once the cursor leaves both the top border icons (TopBar opens popouts from
+        // its own hover handlers) and the popout hanging below them
+        const overTopBar = y < topThickness && x >= topBar.x && x <= topBar.x + topBar.width;
+        if (!overTopBar && (!popouts.currentName.startsWith("traymenu") || ((popouts.current as StackView)?.depth ?? 0) <= 1) && !inPopout(x, y)) {
             popouts.hasCurrent = false;
             bar.closeTray();
         }

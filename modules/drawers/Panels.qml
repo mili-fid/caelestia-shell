@@ -109,7 +109,7 @@ Item {
         id: popoutsWrapper
 
         screen: root.screen
-        borderThickness: root.topThickness
+        leftOffset: root.bar.implicitWidth
     }
 
     Utilities.Wrapper {

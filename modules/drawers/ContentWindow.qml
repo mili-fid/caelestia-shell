@@ -235,15 +235,15 @@ StyledWindow {
         PanelBg {
             id: popoutBg
 
-            // Extra width to prevent vertical movement deformation partially detaching panel from bar
-            property real extraWidth: panels.popouts.isDetached ? 0 : 0.2
+            // Extra height to prevent horizontal movement deformation partially detaching panel from the top border
+            property real extraHeight: panels.popouts.isDetached ? 0 : 0.2
 
             panel: panels.popoutsWrapper
             deformAmount: panels.popouts.isDetached ? 0.05 : panels.popouts.hasCurrent ? 0.15 : 0.1
-            x: panels.popoutsWrapper.x + panels.popouts.x + bar.implicitWidth - panels.popouts.width * extraWidth
-            implicitWidth: panels.popouts.width * (1 + extraWidth)
+            y: panels.popoutsWrapper.y + root.topBorderThickness - panels.popoutsWrapper.height * extraHeight
+            implicitHeight: panels.popoutsWrapper.height * (1 + extraHeight)
 
-            Behavior on extraWidth {
+            Behavior on extraHeight {
                 Anim {}
             }
         }
@@ -275,6 +275,7 @@ StyledWindow {
         screenState: root.screenState
         panels: panels
         bar: bar
+        topBar: topBar
         borderThickness: root.borderLayoutThickness
         topThickness: root.topBorderLayoutThickness
         fullscreen: root.hasFullscreen
@@ -329,6 +330,22 @@ StyledWindow {
 
             fullscreen: root.hasFullscreen
         }
+    }
+
+    // Workspaces, tray, status icons and power, on the left of the top border (the left bar is disabled).
+    // Above the panels so its buttons get input
+    TopBar {
+        id: topBar
+
+        x: bar.implicitWidth + Tokens.padding.large
+        y: Math.round((root.topBorderBase - height) / 2)
+        enabled: !root.hasFullscreen
+        screen: root.screen
+        screenState: root.screenState
+        popouts: panels.popouts
+        popoutHovered: () => interactions.containsMouse && interactions.inPopout(interactions.mouseX, interactions.mouseY)
+        borderHeight: root.topBorderBase
+        shownOpacity: 1 - root.fsTransitionProg
     }
 
     // Now playing, on the right of the top border. Above the panels so its buttons get input;
