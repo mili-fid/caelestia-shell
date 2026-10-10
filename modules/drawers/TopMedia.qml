@@ -36,13 +36,15 @@ Item {
     property bool skipping
     readonly property bool playing: pendingPlay ? optimisticPlaying : (player?.isPlaying ?? false)
 
-    readonly property int artSize: borderHeight - 8
-    readonly property int buttonSize: borderHeight - 6
+    readonly property int artSize: borderHeight - 6
+    readonly property int buttonSize: borderHeight - 2
+    readonly property int buttonWidth: buttonSize + 4
+    readonly property int buttonGap: Tokens.spacing.small
     readonly property int fast: 150 // Hover
     readonly property int swap: 180 // Icon / track changes, split into a short out and in
 
     // Width left for the text after the cover, buttons and spacing
-    readonly property real textCap: Math.max(0, Math.min(260, maxWidth - artSize - buttonSize * 3 - Tokens.spacing.small * 2))
+    readonly property real textCap: Math.max(0, Math.min(320, maxWidth - artSize - buttonWidth * 3 - buttonGap * 2 - Tokens.spacing.medium * 2))
 
     implicitWidth: row.implicitWidth
     implicitHeight: borderHeight
@@ -147,7 +149,7 @@ Item {
         id: row
 
         anchors.verticalCenter: parent.verticalCenter
-        spacing: Tokens.spacing.small
+        spacing: Tokens.spacing.medium
 
         // Cover + text: one click target that opens the Media tab
         Item {
@@ -173,7 +175,7 @@ Item {
                 id: infoRow
 
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: Tokens.spacing.small
+                spacing: Tokens.spacing.medium
 
                 Item {
                     id: cover
@@ -383,6 +385,7 @@ Item {
 
         Row {
             anchors.verticalCenter: parent.verticalCenter
+            spacing: root.buttonGap
 
             MediaButton {
                 icon: "skip_previous"
@@ -458,7 +461,7 @@ Item {
         signal clicked
 
         anchors.verticalCenter: parent.verticalCenter
-        implicitWidth: root.buttonSize
+        implicitWidth: root.buttonWidth
         implicitHeight: root.buttonSize
         opacity: disabled ? 0.38 : 1
 
@@ -529,7 +532,7 @@ Item {
             text: button.icon
             color: Colours.palette.m3onSurfaceVariant
             fill: 1
-            fontStyle: Tokens.font.icon.medium
+            fontStyle: Tokens.font.icon.large
         }
     }
 }
