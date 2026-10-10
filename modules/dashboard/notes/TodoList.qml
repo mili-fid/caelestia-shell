@@ -162,6 +162,13 @@ StyledRect {
                 clip: true
                 spacing: Tokens.spacing.small
                 model: todos
+                flickDeceleration: 1000
+                maximumFlickVelocity: 7000
+
+                NotesWheelScroll {
+                    flickable: list
+                    step: Math.max(list.count ? (list.contentHeight + list.spacing) / list.count : 0, 60)
+                }
 
                 add: Transition {
                     Anim {

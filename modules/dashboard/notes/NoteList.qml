@@ -198,6 +198,13 @@ StyledRect {
                     clip: true
                     spacing: Tokens.spacing.small
                     model: notes
+                    flickDeceleration: 1000
+                    maximumFlickVelocity: 7000
+
+                    NotesWheelScroll {
+                        flickable: list
+                        step: Math.max(list.count ? (list.contentHeight + list.spacing) / list.count : 0, 60)
+                    }
 
                     add: Transition {
                         Anim {
@@ -334,6 +341,13 @@ StyledRect {
                             Layout.fillHeight: true
                             clip: true
                             flickableDirection: Flickable.VerticalFlick
+                            flickDeceleration: 1000
+                            maximumFlickVelocity: 7000
+
+                            NotesWheelScroll {
+                                flickable: bodyFlick
+                                step: Math.max(body.cursorRectangle.height, 16) * 3 // ~3 lines
+                            }
 
                             T.TextArea.flickable: T.TextArea {
                                 id: body
