@@ -1,12 +1,16 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
+import Quickshell.Wayland
 import Caelestia.Config
+import Caelestia.Services
 import Caelestia.I18n
 import qs.components
+import qs.components.containers
 import qs.services
 
-// Now-playing row on the right of the top border: [cover] Title · Artist [prev] [play/pause] [next].
+// Now-playing row on the right of the top border: [cover] Title · Artist [visualiser] [prev] [play/pause] [next].
 // Uses the shared MPRIS service (Players), same as the dashboard's Media tab. Everything is bound to the
 // player's properties, which Quickshell updates from MPRIS PropertiesChanged signals (no polling).
 // Button presses update the UI optimistically and then follow the player's real state.
@@ -14,6 +18,7 @@ import qs.services
 Item {
     id: root
 
+    required property ShellScreen screen
     required property ScreenState screenState
     required property int borderHeight
     property real shownOpacity: 1
@@ -43,8 +48,16 @@ Item {
     readonly property int fast: 150 // Hover
     readonly property int swap: 180 // Icon / track changes, split into a short out and in
 
+    // Mini visualiser: a few thin bars fed from the shared cava service (Audio.cava, same as the background one)
+    readonly property int vizBars: 14
+    readonly property int vizBarWidth: 3
+    readonly property int vizGap: 2
+    readonly property int vizWidth: vizBars * vizBarWidth + (vizBars - 1) * vizGap
+    readonly property int vizHeight: borderHeight - 8
+    readonly property real vizDot: vizBarWidth / vizHeight // Bar height that reads as a round dot
+
     // Width left for the text after the cover, buttons and spacing
-    readonly property real textCap: Math.max(0, Math.min(320, maxWidth - artSize - buttonWidth * 3 - buttonGap * 2 - Tokens.spacing.medium * 2))
+    readonly property real textCap: Math.max(0, Math.min(320, maxWidth - artSize - vizWidth - buttonWidth * 3 - buttonGap * 2 - Tokens.spacing.medium * 3))
 
     implicitWidth: row.implicitWidth
     implicitHeight: borderHeight
@@ -383,6 +396,49 @@ Item {
             }
         }
 
+        // Placeholder in the row; the bars draw in their own small layer surface on top of it (vizWindow), so each
+        // update only redraws those few pixels instead of the whole border window
+        Item {
+            id: viz
+
+            // Max of each group of cava bars, sampled at ~30fps and written straight to the bars; flat dots when paused or stopped
+            function sample(): void {
+                const src = root.playing ? Audio.cava.values : [];
+                const n = src.length;
+                for (let i = 0; i < root.vizBars; i++) {
+                    const bar = bars.itemAt(i);
+                    if (!bar)
+                        continue;
+                    let v = 0;
+                    if (n > 0) {
+                        const from = Math.floor(i * n / root.vizBars);
+                        const to = Math.max(from + 1, Math.floor((i + 1) * n / root.vizBars));
+                        for (let j = from; j < to; j++)
+                            v = Math.max(v, src[j]);
+                    }
+                    bar.level = Math.max(root.vizDot, Math.min(1, v));
+                }
+            }
+
+            anchors.verticalCenter: parent.verticalCenter
+            implicitWidth: root.vizWidth
+            implicitHeight: root.vizHeight
+
+            // Only holds the cava service while playing
+            ServiceRef {
+                service: root.playing ? Audio.cava : null
+            }
+
+            // Nothing runs while paused or stopped
+            Timer {
+                interval: 33
+                repeat: true
+                running: root.playing && root.visible
+                onRunningChanged: viz.sample() // Settle to dots on pause
+                onTriggered: viz.sample()
+            }
+        }
+
         Row {
             anchors.verticalCenter: parent.verticalCenter
             spacing: root.buttonGap
@@ -403,6 +459,82 @@ Item {
                 icon: "skip_next"
                 disabled: !root.hasTrack || !root.player?.canGoNext
                 onClicked: root.skip(true)
+            }
+        }
+    }
+
+    // Click-through surface just over the visualiser placeholder, so the border window isn't redrawn per frame
+    StyledWindow {
+        id: vizWindow
+
+        screen: root.screen
+        name: "top-media-visualiser"
+        visible: root.visible && root.opacity > 0
+        exclusionMode: ExclusionMode.Ignore
+        WlrLayershell.layer: WlrLayer.Overlay
+        mask: Region {}
+        anchors.top: true
+        anchors.left: true
+        margins.left: Math.round(root.x + row.x + viz.x)
+        margins.top: Math.round(root.y + row.y + viz.y)
+        implicitWidth: root.vizWidth
+        implicitHeight: root.vizHeight
+
+        // Same look as the background visualiser: rounded tops, primary -> inversePrimary gradient, 0.7 alpha
+        Row {
+            anchors.bottom: parent.bottom
+            spacing: root.vizGap
+            clip: true // Hides the bottom rounding
+            opacity: root.opacity * (root.hasTrack ? 1 : 0.5)
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: root.swap
+                }
+            }
+
+            Repeater {
+                id: bars
+
+                model: root.vizBars
+
+                Item {
+                    id: bar
+
+                    property real level: root.vizDot
+
+                    implicitWidth: root.vizBarWidth
+                    implicitHeight: root.vizHeight
+
+                    // Stepped while playing (fewer redraws); eases down to the dots on pause
+                    Behavior on level {
+                        enabled: !root.playing
+
+                        NumberAnimation {
+                            duration: Tokens.anim.durations.normal
+                            easing.type: Easing.OutQuad
+                        }
+                    }
+
+                    // Fixed size and colours, only moved up and down (cheapest update); the part below the bottom is clipped
+                    Rectangle {
+                        y: root.vizHeight - Math.max(root.vizBarWidth, bar.level * root.vizHeight)
+                        width: root.vizBarWidth
+                        height: root.vizHeight + radius
+                        radius: root.vizBarWidth / 2
+
+                        gradient: Gradient {
+                            GradientStop {
+                                position: 0
+                                color: Qt.alpha(Colours.palette.m3primary, 0.7)
+                            }
+                            GradientStop {
+                                position: 1
+                                color: Qt.alpha(Colours.palette.m3inversePrimary, 0.7)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
