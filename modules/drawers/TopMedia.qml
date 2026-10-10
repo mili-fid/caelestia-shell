@@ -41,7 +41,8 @@ Item {
     property bool skipping
     readonly property bool playing: pendingPlay ? optimisticPlaying : (player?.isPlaying ?? false)
 
-    readonly property int artSize: borderHeight - 6
+    readonly property int artSize: borderHeight - 4 // 2px clear above and below
+    readonly property real artRadius: Tokens.rounding.small * artSize / (borderHeight - 6) // Same corner shape as the old, smaller cover
     readonly property int buttonSize: borderHeight - 2
     readonly property int buttonWidth: buttonSize + 4
     readonly property int buttonGap: Tokens.spacing.small
@@ -230,7 +231,7 @@ Item {
 
                     StyledClippingRect {
                         anchors.fill: parent
-                        radius: Tokens.rounding.small
+                        radius: root.artRadius
                         opacity: root.hasTrack ? 1 : 0
 
                         Behavior on opacity {

@@ -7,7 +7,7 @@ import qs.components.controls
 import qs.services
 import qs.utils
 
-// Notch contents: icon, accent progress bar and percentage. Scrolling adjusts the volume,
+// Notch contents: icon, accent progress bar and percentage. Scrolling adjusts the volume (brightness when shown),
 // clicking the icon toggles mute.
 CustomMouseArea {
     id: root
@@ -27,7 +27,12 @@ CustomMouseArea {
     property real shownValue: value
 
     function onWheel(event: WheelEvent): void {
-        if (event.angleDelta.y > 0)
+        if (kind === "brightness") {
+            if (event.angleDelta.y > 0)
+                Brightness.increaseBrightness();
+            else if (event.angleDelta.y < 0)
+                Brightness.decreaseBrightness();
+        } else if (event.angleDelta.y > 0)
             Audio.incrementVolume();
         else if (event.angleDelta.y < 0)
             Audio.decrementVolume();
