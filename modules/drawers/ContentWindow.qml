@@ -334,6 +334,17 @@ StyledWindow {
         }
     }
 
+    // Now playing, on the left of the top border. Above the panels so its buttons get input;
+    // capped so it never reaches the dashboard or the date/time row
+    TopMedia {
+        x: bar.implicitWidth + root.borderRounding
+        y: Math.round((root.topBorderBase - height) / 2)
+        screenState: root.screenState
+        borderHeight: root.topBorderBase
+        maxWidth: Math.min(panels.dashboard.x + bar.implicitWidth, topInfo.x) - x - Tokens.spacing.large
+        shownOpacity: 1 - root.fsTransitionProg
+    }
+
     // Above the panels, so it can fly in and out of the dashboard
     TimerPill {
         id: timerPill
