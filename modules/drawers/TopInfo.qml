@@ -56,9 +56,11 @@ Item {
         anchors.horizontalCenterOffset: -root.reserved / 2 // Keep date/time and the pill centred together
         spacing: Tokens.spacing.medium
 
-        Segment {
-            icon: "calendar_month"
-            text: Qt.formatDateTime(clock.date, "dddd d MMMM")
+        StyledText {
+            anchors.verticalCenter: parent.verticalCenter
+            text: Qt.formatDateTime(clock.date, "dd/MM/yyyy")
+            color: Colours.palette.m3onSurfaceVariant
+            font: Tokens.font.body.builders.medium.weight(Font.Medium).build()
         }
 
         Dot {}
