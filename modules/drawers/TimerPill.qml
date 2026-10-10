@@ -13,7 +13,7 @@ Item {
     id: root
 
     required property ScreenState screenState
-    required property Item dashboard // The dashboard wrapper: its offsetScale drives the flight
+    required property Item dashboard // The dashboard wrapper: its fullOffsetScale drives the flight
     required property Item slot // Where the pill rests (TopInfo.pillSlot)
     required property real fsProgress
     required property int borderHeight
@@ -41,7 +41,7 @@ Item {
     property real pulse: 1
 
     // 1 when the dashboard is closed, 0 when open
-    readonly property real closed: Math.max(0, Math.min(1, dashboard.offsetScale)) // The drawer anim overshoots
+    readonly property real closed: Math.max(0, Math.min(1, dashboard.fullOffsetScale)) // The drawer anim overshoots
     property real presence: active ? 1 : 0
 
     // The dial's digits, if they are in this screen's dashboard
@@ -144,25 +144,21 @@ Item {
         }
     }
 
-    // Clicking (or hovering, with show on hover) opens the dashboard on the timer tab
+    // Clicking opens the full dashboard straight on the timer tab
     HoverHandler {
         enabled: root.active && root.closed === 1
         cursorShape: Qt.PointingHandCursor
-        onHoveredChanged: {
-            if (hovered)
-                root.openTimerTab(false);
-        }
     }
 
     TapHandler {
         enabled: root.active && root.closed === 1
-        onTapped: root.openTimerTab(true)
+        onTapped: root.openTimerTab()
     }
 
-    function openTimerTab(open: bool): void {
-        root.screenState.dashboardTab = [Config.dashboard.showDashboard, Config.dashboard.showMedia, Config.dashboard.showPerformance].filter(Boolean).length;
-        if (open)
-            root.screenState.dashboard = true;
+    function openTimerTab(): void {
+        root.screenState.dashboardTab = 1; // Performance, Timer, Notes
+        root.screenState.dashboard = true;
+        root.screenState.dashboardNotch = false;
     }
 
     StyledRect {

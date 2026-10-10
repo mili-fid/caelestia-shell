@@ -66,6 +66,7 @@ StyledWindow {
         screenState.launcher = false;
         screenState.session = false;
         screenState.dashboard = false;
+        screenState.dashboardNotch = false;
         panels.popouts.close();
     }
 
@@ -132,6 +133,7 @@ StyledWindow {
             root.screenState.session = false;
             root.screenState.sidebar = false;
             root.screenState.dashboard = false;
+            root.screenState.dashboardNotch = false;
             panels.popouts.hasCurrent = false;
             bar.closeTray();
         }
@@ -353,7 +355,7 @@ StyledWindow {
     TopMedia {
         readonly property real rightEdge: root.width - root.borderThickness - 82
         readonly property real infoRight: topInfo.x + (topInfo.width + topInfo.reserved) / 2
-        readonly property real dashRight: panels.dashboard.x + bar.implicitWidth + panels.dashboard.width
+        readonly property real dashRight: panels.dashboard.x + bar.implicitWidth + (panels.dashboard.width + panels.dashboard.reservedWidth) / 2
 
         x: Math.round(rightEdge - width)
         y: Math.round((root.topBorderBase - height) / 2)

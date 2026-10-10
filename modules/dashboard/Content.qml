@@ -6,50 +6,22 @@ import Quickshell
 import Quickshell.Widgets
 import Caelestia
 import Caelestia.Config
-import Caelestia.I18n
 import qs.components
-import qs.components.filedialog
 
 Item {
     id: root
 
     required property ScreenState screenState
-    required property FileDialog facePicker
 
+    // Icons and labels come from the wrapper, which shares them with the small notch
+    required property var tabInfo
+    // Off while morphing out of the notch, so the picked tab shows straight away instead of sliding in
+    property bool animate: true
     readonly property var dashboardTabs: {
-        const allTabs = [
-            {
-                component: dashComponent,
-                iconName: "dashboard",
-                text: Tr.tr("Dashboard"),
-                enabled: Config.dashboard.showDashboard
-            },
-            {
-                component: mediaComponent,
-                iconName: "queue_music",
-                text: Tr.tr("Media"),
-                enabled: Config.dashboard.showMedia
-            },
-            {
-                component: performanceComponent,
-                iconName: "speed",
-                text: Tr.tr("Performance"),
-                enabled: Config.dashboard.showPerformance
-            },
-            {
-                component: timerComponent,
-                iconName: "timer",
-                text: Tr.tr("Timer"),
-                enabled: true
-            },
-            {
-                component: notesComponent,
-                iconName: "edit_note",
-                text: Tr.tr("Notes"),
-                enabled: true
-            }
-        ];
-        return allTabs.filter(tab => tab.enabled);
+        const components = [performanceComponent, timerComponent, notesComponent];
+        return tabInfo.map((tab, i) => Object.assign({
+                component: components[i]
+            }, tab));
     }
 
     readonly property real nonAnimWidth: view.implicitWidth + viewWrapper.anchors.margins * 2
@@ -160,23 +132,6 @@ Item {
             }
 
             Component {
-                id: dashComponent
-
-                Dash {
-                    screenState: root.screenState
-                    facePicker: root.facePicker
-                }
-            }
-
-            Component {
-                id: mediaComponent
-
-                Media {
-                    screenState: root.screenState
-                }
-            }
-
-            Component {
                 id: performanceComponent
 
                 Performance {}
@@ -195,16 +150,22 @@ Item {
             }
 
             Behavior on contentX {
+                enabled: root.animate
+
                 Anim {}
             }
         }
     }
 
     Behavior on implicitWidth {
+        enabled: root.animate
+
         Anim {}
     }
 
     Behavior on implicitHeight {
+        enabled: root.animate
+
         Anim {}
     }
 }

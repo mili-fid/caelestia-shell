@@ -79,13 +79,6 @@ Item {
         skipping = false;
     }
 
-    function openMediaTab(): void {
-        if (!Config.dashboard.showMedia)
-            return;
-        root.screenState.dashboardTab = Config.dashboard.showDashboard ? 1 : 0;
-        root.screenState.dashboard = true;
-    }
-
     function togglePlaying(): void {
         optimisticPlaying = !playing;
         pendingPlay = true;
@@ -182,7 +175,7 @@ Item {
 
             TapHandler {
                 enabled: root.hasTrack
-                onTapped: root.openMediaTab()
+                onTapped: root.togglePlaying()
             }
 
             Row {

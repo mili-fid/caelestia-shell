@@ -17,7 +17,7 @@ Item {
 
     property bool hovered
     readonly property Brightness.Monitor monitor: Brightness.getMonitorForScreen(root.screen)
-    readonly property bool shouldBeActive: screenState.osd && Config.osd.enabled && !(screenState.dashboard && Config.dashboard.enabled)
+    readonly property bool shouldBeActive: screenState.osd && Config.osd.enabled && !((screenState.dashboard || screenState.dashboardNotch) && Config.dashboard.enabled) // Shares the spot with the dashboard notch
     property real offsetScale: shouldBeActive ? 0 : 1
     readonly property real presence: Math.max(0, Math.min(1, 1 - offsetScale))
 

@@ -22,6 +22,7 @@ CustomMouseArea {
 
     property point dragStart
     property bool dashboardShortcutActive
+    property bool notchShortcutActive
     property bool utilitiesShortcutActive
 
     function withinPanelHeight(panel: Item, x: real, y: real): bool {
@@ -52,6 +53,14 @@ CustomMouseArea {
         return y < Math.max(Config.border.minThickness, root.topThickness + panelHeight) && withinPanelWidth(panel, x, y);
     }
 
+    // The dashboard panel itself, or the top border strip above it (the hover trigger, as wide as the full window)
+    function inDashboard(x: real, y: real): bool {
+        const panel = panels.dashboard;
+        const centre = bar.implicitWidth + panel.x + panel.width / 2;
+        const inTrigger = y < Math.max(Config.border.minThickness, root.topThickness) && Math.abs(x - centre) <= panel.reservedWidth / 2 + Config.border.rounding;
+        return inTrigger || inTopPanel(panel, x, y);
+    }
+
     function inBottomPanel(panel: Item, x: real, y: real, isCorner = false): bool {
         const panelHeight = panel.height * (1 - (panel.offsetScale ?? 0)); // qmllint disable missing-property
         return y > height - Math.max(Config.border.minThickness, Config.border.thickness + panelHeight) - (isCorner ? Config.border.rounding : 0) && withinPanelWidth(panel, x, y);
@@ -74,6 +83,9 @@ CustomMouseArea {
         if (!containsMouse) {
             if (!dashboardShortcutActive)
                 screenState.dashboard = false;
+
+            if (!notchShortcutActive)
+                screenState.dashboardNotch = false;
 
             if (!utilitiesShortcutActive)
                 screenState.utilities = false;
@@ -182,23 +194,29 @@ CustomMouseArea {
                 screenState.launcher = false;
         }
 
-        // Show dashboard on hover
-        const showDashboard = Config.dashboard.showOnHover && inTopPanel(panels.dashboard, x, y);
+        // Hovering the top centre drops the small notch; the full window (opened from it) closes once left
+        const showDashboard = Config.dashboard.showOnHover && inDashboard(x, y);
 
-        // Always update visibility based on hover if not in shortcut mode
-        if (!dashboardShortcutActive) {
-            screenState.dashboard = showDashboard;
+        if (screenState.dashboard) {
+            if (!dashboardShortcutActive)
+                screenState.dashboard = showDashboard;
+            else if (showDashboard)
+                // If hovering over dashboard area while in shortcut mode, transition to hover control
+                dashboardShortcutActive = false;
+        } else if (!notchShortcutActive) {
+            screenState.dashboardNotch = showDashboard;
         } else if (showDashboard) {
-            // If hovering over dashboard area while in shortcut mode, transition to hover control
-            dashboardShortcutActive = false;
+            notchShortcutActive = false;
         }
 
-        // Show/hide dashboard on drag (for touchscreen devices)
+        // Show/hide the notch on drag (for touchscreen devices)
         if (pressed && inTopPanel(panels.dashboard, dragStart.x, dragStart.y) && withinPanelWidth(panels.dashboard, x, y)) {
-            if (dragY > Config.dashboard.dragThreshold)
-                screenState.dashboard = true;
-            else if (dragY < -Config.dashboard.dragThreshold)
+            if (dragY > Config.dashboard.dragThreshold && !screenState.dashboard) {
+                screenState.dashboardNotch = true;
+            } else if (dragY < -Config.dashboard.dragThreshold) {
                 screenState.dashboard = false;
+                screenState.dashboardNotch = false;
+            }
         }
 
         // Show utilities on hover
@@ -227,27 +245,39 @@ CustomMouseArea {
             // If launcher is hidden, clear shortcut flags for dashboard and utilities
             if (!root.screenState.launcher) {
                 root.dashboardShortcutActive = false;
+                root.notchShortcutActive = false;
                 root.utilitiesShortcutActive = false;
 
                 // Also hide dashboard if it's not being hovered
-                const inDashboardArea = root.inTopPanel(root.panels.dashboard, root.mouseX, root.mouseY);
+                const inDashboardArea = root.inDashboard(root.mouseX, root.mouseY);
 
                 if (!inDashboardArea) {
                     root.screenState.dashboard = false;
+                    root.screenState.dashboardNotch = false;
                 }
             }
         }
 
         function onDashboardChanged() {
             if (root.screenState.dashboard) {
-                // Dashboard became visible, immediately check if this should be shortcut mode
-                const inDashboardArea = root.inTopPanel(root.panels.dashboard, root.mouseX, root.mouseY);
-                if (!inDashboardArea) {
+                // Dashboard became visible, immediately check if this should be shortcut mode.
+                // Opened from the notch counts as hovered (the pointer is on its button)
+                if (!root.screenState.dashboardNotch && !(root.containsMouse && root.inDashboard(root.mouseX, root.mouseY))) {
                     root.dashboardShortcutActive = true;
                 }
             } else {
                 // Dashboard hidden, clear shortcut flag
                 root.dashboardShortcutActive = false;
+            }
+        }
+
+        function onDashboardNotchChanged() {
+            if (root.screenState.dashboardNotch) {
+                // Notch opened by a keybind stays until hovered and left, or toggled again
+                if (!(root.containsMouse && root.inDashboard(root.mouseX, root.mouseY)))
+                    root.notchShortcutActive = true;
+            } else {
+                root.notchShortcutActive = false;
             }
         }
 

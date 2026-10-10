@@ -9,6 +9,7 @@ PersistentProperties {
     property bool session
     property bool launcher
     property bool dashboard
+    property bool dashboardNotch // Small notch with the dashboard tab buttons, opened on hover
     property bool utilities
     property bool sidebar
 

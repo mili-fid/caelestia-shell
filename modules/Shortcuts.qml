@@ -12,6 +12,13 @@ Scope {
     property bool launcherInterrupted
     readonly property bool hasFullscreen: Hypr.focusedWorkspace?.toplevels.values.some(t => t.lastIpcObject.fullscreen > 1) ?? false
 
+    // Opens the small dashboard notch, or closes whichever dashboard is showing
+    function toggleDashboard(screenState: var): void {
+        const open = !(screenState.dashboard || screenState.dashboardNotch);
+        screenState.dashboard = false;
+        screenState.dashboardNotch = open;
+    }
+
     // qmllint disable unresolved-type
     CustomShortcut {
         // qmllint enable unresolved-type
@@ -29,7 +36,10 @@ Scope {
             if (root.hasFullscreen)
                 return;
             const v = ShellState.forActive();
-            v.launcher = v.dashboard = v.osd = v.utilities = !(v.launcher || v.dashboard || v.osd || v.utilities);
+            const open = !(v.launcher || v.dashboard || v.dashboardNotch || v.osd || v.utilities);
+            v.launcher = v.dashboardNotch = v.osd = v.utilities = open;
+            if (!open)
+                v.dashboard = false;
         }
     }
 
@@ -41,8 +51,7 @@ Scope {
         onPressed: {
             if (root.hasFullscreen)
                 return;
-            const screenState = ShellState.forActive();
-            screenState.dashboard = !screenState.dashboard;
+            root.toggleDashboard(ShellState.forActive());
         }
     }
 
@@ -111,10 +120,13 @@ Scope {
     IpcHandler {
         function toggle(drawer: string): void {
             if (list().split("\n").includes(drawer)) {
-                if (root.hasFullscreen && ["launcher", "session", "dashboard"].includes(drawer))
+                if (root.hasFullscreen && ["launcher", "session", "dashboard", "dashboardNotch"].includes(drawer))
                     return;
                 const screenState = ShellState.forActive();
-                screenState[drawer] = !screenState[drawer];
+                if (drawer === "dashboard")
+                    root.toggleDashboard(screenState);
+                else
+                    screenState[drawer] = !screenState[drawer];
             } else {
                 console.warn(lc, `Drawer "${drawer}" does not exist`);
             }
