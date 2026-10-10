@@ -1,132 +1,120 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Layouts
-import Caelestia
 import Caelestia.Config
 import qs.components
 import qs.components.controls
 import qs.services
 import qs.utils
 
-Item {
+// Notch contents: icon, accent progress bar and percentage. Scrolling adjusts the volume,
+// clicking the icon toggles mute.
+CustomMouseArea {
     id: root
 
-    required property Brightness.Monitor monitor
-    required property ScreenState screenState
-
+    required property string kind
     required property real volume
     required property bool muted
     required property real sourceVolume
     required property bool sourceMuted
     required property real brightness
 
-    implicitWidth: layout.implicitWidth + Tokens.padding.large + layout.anchors.horizontalCenterOffset * 2
-    implicitHeight: layout.implicitHeight + Tokens.padding.large * 2
+    readonly property real value: kind === "brightness" ? brightness : kind === "mic" ? sourceVolume : volume
+    readonly property real maxValue: kind === "brightness" ? 1 : GlobalConfig.services.maxVolume
+    readonly property bool isMuted: kind === "mic" ? sourceMuted : kind === "volume" ? muted : false
 
-    ColumnLayout {
-        id: layout
+    // Animated copy so the bar and number glide while the keys are held
+    property real shownValue: value
 
-        anchors.centerIn: parent
-        anchors.horizontalCenterOffset: CUtils.clamp(Tokens.padding.large - Config.border.thickness, 0, Tokens.padding.large) / 2
-        spacing: Tokens.spacing.medium
+    function onWheel(event: WheelEvent): void {
+        if (event.angleDelta.y > 0)
+            Audio.incrementVolume();
+        else if (event.angleDelta.y < 0)
+            Audio.decrementVolume();
+    }
 
-        // Speaker volume
-        CustomMouseArea {
-            function onWheel(event: WheelEvent) {
-                if (event.angleDelta.y > 0)
-                    Audio.incrementVolume();
-                else if (event.angleDelta.y < 0)
-                    Audio.decrementVolume();
+    Behavior on shownValue {
+        Anim {
+            type: Anim.FastEffects
+        }
+    }
+
+    Item {
+        id: iconBox
+
+        anchors.left: parent.left
+        anchors.leftMargin: Tokens.padding.large + Tokens.padding.small
+        anchors.verticalCenter: parent.verticalCenter
+        implicitWidth: icon.implicitWidth
+        implicitHeight: icon.implicitHeight
+
+        MaterialIcon {
+            id: icon
+
+            anchors.centerIn: parent
+            text: {
+                if (root.kind === "brightness")
+                    return `brightness_${Math.round(root.shownValue * 6) + 1}`;
+                if (root.kind === "mic")
+                    return Icons.getMicVolumeIcon(root.value, root.sourceMuted);
+                return Icons.getVolumeIcon(root.value, root.muted);
             }
-
-            implicitWidth: Tokens.sizes.osd.sliderWidth
-            implicitHeight: Tokens.sizes.osd.sliderHeight
-
-            FilledSlider {
-                anchors.fill: parent
-
-                icon: Icons.getVolumeIcon(value, root.muted)
-                value: root.volume
-                to: GlobalConfig.services.maxVolume
-                onMoved: Audio.setVolume(value)
-            }
+            color: root.isMuted ? Colours.palette.m3outline : Colours.palette.m3primary
+            fill: 1
+            fontStyle: Tokens.font.icon.small
         }
 
-        // Microphone volume
-        WrappedLoader {
-            shouldBeActive: Config.osd.enableMicrophone && (!Config.osd.enableBrightness || !root.screenState.session)
-
-            sourceComponent: CustomMouseArea {
-                function onWheel(event: WheelEvent) {
-                    if (event.angleDelta.y > 0)
-                        Audio.incrementSourceVolume();
-                    else if (event.angleDelta.y < 0)
-                        Audio.decrementSourceVolume();
-                }
-
-                implicitWidth: Tokens.sizes.osd.sliderWidth
-                implicitHeight: Tokens.sizes.osd.sliderHeight
-
-                FilledSlider {
-                    anchors.fill: parent
-
-                    icon: Icons.getMicVolumeIcon(value, root.sourceMuted)
-                    value: root.sourceVolume
-                    to: GlobalConfig.services.maxVolume
-                    onMoved: Audio.setSourceVolume(value)
-                }
-            }
-        }
-
-        // Brightness
-        WrappedLoader {
-            shouldBeActive: Config.osd.enableBrightness
-
-            sourceComponent: CustomMouseArea {
-                function onWheel(event: WheelEvent) {
-                    const monitor = root.monitor;
-                    if (!monitor)
-                        return;
-                    if (event.angleDelta.y > 0)
-                        monitor.setBrightness(monitor.brightness + GlobalConfig.services.brightnessIncrement);
-                    else if (event.angleDelta.y < 0)
-                        monitor.setBrightness(monitor.brightness - GlobalConfig.services.brightnessIncrement);
-                }
-
-                implicitWidth: Tokens.sizes.osd.sliderWidth
-                implicitHeight: Tokens.sizes.osd.sliderHeight
-
-                FilledSlider {
-                    anchors.fill: parent
-
-                    icon: `brightness_${(Math.round(value * 6) + 1)}`
-                    value: root.brightness
-                    onMoved: root.monitor?.setBrightness(value)
-                }
+        MouseArea {
+            anchors.fill: parent
+            anchors.margins: -Tokens.padding.small
+            cursorShape: root.kind === "brightness" ? Qt.ArrowCursor : Qt.PointingHandCursor
+            onClicked: {
+                const node = root.kind === "mic" ? Audio.source : root.kind === "volume" ? Audio.sink : null;
+                if (node?.audio)
+                    node.audio.muted = !node.audio.muted;
             }
         }
     }
 
-    component WrappedLoader: Loader {
-        required property bool shouldBeActive
+    StyledRect {
+        id: track
 
-        asynchronous: true
-        Layout.preferredHeight: shouldBeActive ? Tokens.sizes.osd.sliderHeight : 0
-        opacity: shouldBeActive ? 1 : 0
-        active: opacity > 0
-        visible: active
+        anchors.left: iconBox.right
+        anchors.right: percent.left
+        anchors.leftMargin: Tokens.spacing.medium
+        anchors.rightMargin: Tokens.spacing.medium
+        anchors.verticalCenter: parent.verticalCenter
+        implicitHeight: 6
+        radius: height / 2
+        color: Colours.layer(Colours.palette.m3surfaceContainerHighest, 2)
 
-        Behavior on Layout.preferredHeight {
-            Anim {
-                type: Anim.Emphasized
-            }
+        StyledRect {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: parent.width * Math.max(0, Math.min(1, root.shownValue / root.maxValue))
+            radius: parent.radius
+            color: root.isMuted ? Colours.palette.m3outline : Colours.palette.m3primary
         }
+    }
 
-        Behavior on opacity {
-            Anim {
-                type: Anim.DefaultEffects
-            }
+    StyledText {
+        id: percent
+
+        anchors.right: parent.right
+        anchors.rightMargin: Tokens.padding.large + Tokens.padding.small
+        anchors.verticalCenter: parent.verticalCenter
+        width: metrics.width
+        horizontalAlignment: Text.AlignRight
+        text: `${Math.round(root.shownValue * 100)}%`
+        color: Colours.palette.m3onSurface
+        font: Tokens.font.body.builders.medium.weight(Font.Medium).build()
+
+        TextMetrics {
+            id: metrics
+
+            font: percent.font
+            text: "100%"
         }
     }
 }

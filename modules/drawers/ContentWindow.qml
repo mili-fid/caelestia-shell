@@ -98,10 +98,9 @@ StyledWindow {
         height: panels.notifications.height
 
         Region {
-            x: root.width - width
-            y: panels.osdWrapper.y + root.topBorderThickness
-            width: panels.osdWrapper.width * (1 - panels.osd.offsetScale) + root.borderThickness
-            height: panels.osd.height
+            x: panels.osd.x + bar.implicitWidth
+            width: panels.osd.width
+            height: panels.osd.visible ? panels.osd.height * panels.osd.presence + root.topBorderThickness : 0
         }
     }
 
@@ -214,10 +213,8 @@ StyledWindow {
         PanelBg {
             id: osdBg
 
-            panel: panels.osdWrapper
-            deformAmount: 0.25
-            x: panels.osdWrapper.x + panels.osd.x + bar.implicitWidth
-            implicitWidth: panels.osd.width
+            panel: panels.osd
+            deformAmount: 0.15
         }
 
         PanelBg {
@@ -258,7 +255,7 @@ StyledWindow {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.horizontalCenterOffset: (bar.implicitWidth - root.borderThickness) / 2
         y: Math.round((root.topBorderBase - height) / 2)
-        shownOpacity: panels.dashboard.offsetScale * (1 - root.fsTransitionProg)
+        shownOpacity: panels.dashboard.offsetScale * (1 - root.fsTransitionProg) * (1 - panels.osd.presence)
         pillWidth: timerPill.width
         pillRoom: timerPill.presence * timerPill.closed
     }

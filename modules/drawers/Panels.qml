@@ -23,7 +23,6 @@ Item {
     required property real topThickness
 
     readonly property alias osd: osd
-    readonly property alias osdWrapper: osdWrapper
     readonly property alias notifications: notifications
     readonly property alias session: session
     readonly property alias sessionWrapper: sessionWrapper
@@ -40,27 +39,15 @@ Item {
     anchors.topMargin: topThickness
     anchors.leftMargin: bar.implicitWidth
 
-    Item {
-        id: osdWrapper
+    // Notch OSD, hanging from the centre of the top border
+    Osd.Wrapper {
+        id: osd
 
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.right: parent.right
-        anchors.rightMargin: sessionWrapper.anchors.rightMargin + session.width * (1 - session.offsetScale)
-        clip: sidebar.visible || session.visible
+        screen: root.screen
+        screenState: root.screenState
 
-        implicitWidth: osd.implicitWidth * (1 - osd.offsetScale)
-        implicitHeight: osd.implicitHeight
-
-        Osd.Wrapper {
-            id: osd
-
-            screen: root.screen
-            screenState: root.screenState
-            sidebarOrSessionVisible: sidebar.visible || session.visible
-
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.right: parent.right
-        }
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
     }
 
     Notifications.Wrapper {
@@ -68,7 +55,7 @@ Item {
 
         screenState: root.screenState
         sidebarPanel: sidebar
-        osdPanel: osdWrapper
+        osdPanel: osd
         sessionPanel: sessionWrapper
         utilitiesPanel: utilities
 

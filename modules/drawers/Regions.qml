@@ -51,9 +51,9 @@ Region {
     }
 
     R {
-        panel: root.panels.osdWrapper
-        x: root.win.width - width
-        width: panel.width * (1 - root.panels.osd.offsetScale) + root.borderThickness + sessionRegion.width
+        panel: root.panels.osd
+        y: 0
+        height: panel.visible ? panel.height * root.panels.osd.presence + root.topThickness : 0
     }
 
     R {

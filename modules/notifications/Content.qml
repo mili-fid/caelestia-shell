@@ -35,12 +35,6 @@ Item {
         for (let i = 0; i < count; i++)
             height += (list.itemAtIndex(i) as NotifWrapper)?.nonAnimHeight ?? 0;
 
-        if (screenState.osd) {
-            const h = osdPanel.y - clampedPadding;
-            if (height > h)
-                height = h;
-        }
-
         if (screenState.session) {
             const h = sessionPanel.y - clampedPadding;
             if (height > h)

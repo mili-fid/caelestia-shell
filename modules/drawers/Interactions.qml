@@ -21,7 +21,6 @@ CustomMouseArea {
 
     property point dragStart
     property bool dashboardShortcutActive
-    property bool osdShortcutActive
     property bool utilitiesShortcutActive
 
     function withinPanelHeight(panel: Item, x: real, y: real): bool {
@@ -67,12 +66,6 @@ CustomMouseArea {
     onPressed: event => dragStart = Qt.point(event.x, event.y)
     onContainsMouseChanged: {
         if (!containsMouse) {
-            // Only hide if not activated by shortcut
-            if (!osdShortcutActive) {
-                screenState.osd = false;
-                root.panels.osd.hovered = false;
-            }
-
             if (!dashboardShortcutActive)
                 screenState.dashboard = false;
 
@@ -101,10 +94,8 @@ CustomMouseArea {
         const dragX = x - dragStart.x;
         const dragY = y - dragStart.y;
 
-        if (fullscreen) {
-            root.panels.osd.hovered = inRightPanel(panels.osdWrapper, x, y);
+        if (fullscreen)
             return;
-        }
 
         // Show bar in non-exclusive mode on hover
         if (!screenState.bar && Config.bar.showOnHover && x < bar.clampedWidth)
@@ -119,19 +110,6 @@ CustomMouseArea {
         }
 
         if (panels.sidebar.offsetScale === 1) {
-            // Show osd on hover
-            const showOsd = inRightPanel(panels.osdWrapper, x, y);
-
-            // Always update visibility based on hover if not in shortcut mode
-            if (!osdShortcutActive) {
-                screenState.osd = showOsd;
-                root.panels.osd.hovered = showOsd;
-            } else if (showOsd) {
-                // If hovering over OSD area while in shortcut mode, transition to hover control
-                osdShortcutActive = false;
-                root.panels.osd.hovered = true;
-            }
-
             const showSidebar = pressed && dragStart.x > Math.min(width - Config.border.minThickness, bar.implicitWidth + panels.sidebar.x);
 
             // Show sidebar on hover (top-right corner, bounded by notification panel height)
@@ -158,19 +136,6 @@ CustomMouseArea {
             }
         } else {
             const outOfSidebar = x < width - panels.sidebar.width * (1 - panels.sidebar.offsetScale);
-            // Show osd on hover
-            const showOsd = outOfSidebar && inRightPanel(panels.osdWrapper, x, y);
-
-            // Always update visibility based on hover if not in shortcut mode
-            if (!osdShortcutActive) {
-                screenState.osd = showOsd;
-                root.panels.osd.hovered = showOsd;
-            } else if (showOsd) {
-                // If hovering over OSD area while in shortcut mode, transition to hover control
-                osdShortcutActive = false;
-                root.panels.osd.hovered = true;
-            }
-
             // Show/hide session on drag
             if (pressed && outOfSidebar && inRightPanel(panels.sessionWrapper, dragStart.x, dragStart.y) && withinPanelHeight(panels.sessionWrapper, x, y)) {
                 if (dragX < -Config.session.dragThreshold)
@@ -250,22 +215,16 @@ CustomMouseArea {
     // Monitor individual visibility changes
     Connections {
         function onLauncherChanged() {
-            // If launcher is hidden, clear shortcut flags for dashboard and OSD
+            // If launcher is hidden, clear shortcut flags for dashboard and utilities
             if (!root.screenState.launcher) {
                 root.dashboardShortcutActive = false;
-                root.osdShortcutActive = false;
                 root.utilitiesShortcutActive = false;
 
-                // Also hide dashboard and OSD if they're not being hovered
+                // Also hide dashboard if it's not being hovered
                 const inDashboardArea = root.inTopPanel(root.panels.dashboard, root.mouseX, root.mouseY);
-                const inOsdArea = root.inRightPanel(root.panels.osdWrapper, root.mouseX, root.mouseY);
 
                 if (!inDashboardArea) {
                     root.screenState.dashboard = false;
-                }
-                if (!inOsdArea) {
-                    root.screenState.osd = false;
-                    root.panels.osd.hovered = false;
                 }
             }
         }
@@ -280,19 +239,6 @@ CustomMouseArea {
             } else {
                 // Dashboard hidden, clear shortcut flag
                 root.dashboardShortcutActive = false;
-            }
-        }
-
-        function onOsdChanged() {
-            if (root.screenState.osd) {
-                // OSD became visible, immediately check if this should be shortcut mode
-                const inOsdArea = root.inRightPanel(root.panels.osdWrapper, root.mouseX, root.mouseY);
-                if (!inOsdArea) {
-                    root.osdShortcutActive = true;
-                }
-            } else {
-                // OSD hidden, clear shortcut flag
-                root.osdShortcutActive = false;
             }
         }
 
