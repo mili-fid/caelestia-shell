@@ -334,14 +334,18 @@ StyledWindow {
         }
     }
 
-    // Now playing, on the left of the top border. Above the panels so its buttons get input;
-    // capped so it never reaches the dashboard or the date/time row
+    // Now playing, on the right of the top border. Above the panels so its buttons get input;
+    // capped so it never reaches the dashboard or the date/time row and its timer pill
     TopMedia {
-        x: bar.implicitWidth + root.borderRounding
+        readonly property real rightEdge: root.width - root.borderThickness - root.borderRounding
+        readonly property real infoRight: topInfo.x + (topInfo.width + topInfo.reserved) / 2
+        readonly property real dashRight: panels.dashboard.x + bar.implicitWidth + panels.dashboard.width
+
+        x: Math.round(rightEdge - width)
         y: Math.round((root.topBorderBase - height) / 2)
         screenState: root.screenState
         borderHeight: root.topBorderBase
-        maxWidth: Math.min(panels.dashboard.x + bar.implicitWidth, topInfo.x) - x - Tokens.spacing.large
+        maxWidth: rightEdge - Math.max(infoRight, dashRight) - Tokens.spacing.large
         shownOpacity: 1 - root.fsTransitionProg
     }
 
