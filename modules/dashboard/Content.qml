@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Layouts
 import Quickshell
 import Quickshell.Widgets
 import Caelestia.Config
@@ -14,8 +13,7 @@ Item {
 
     // Icons and labels come from the wrapper, which shares them with the small notch
     required property var tabInfo
-    readonly property alias view: view
-    // Off while morphing out of the notch, so the picked tab shows straight away instead of sliding in
+    // Off while morphing out of the notch (or opening from the timer pill), so the picked tab just appears
     property bool animate: true
     readonly property var dashboardTabs: {
         const components = [performanceComponent, timerComponent, notesComponent];
@@ -24,23 +22,63 @@ Item {
             }, tab));
     }
 
-    // Pages load asynchronously: keep the last ready page's size while the next one builds, so it never collapses
-    property real pageWidth
-    property real pageHeight
+    // The page on screen: the chosen tab once it has loaded. Until then the previous one stays, so there's never a gap
+    property int shownIndex: -1
+    readonly property Loader currentPage: {
+        pages.count; // Trigger update on count change
+        return pages.itemAt(screenState.dashboardTab) as Loader;
+    }
+    readonly property Loader shownPage: {
+        pages.count;
+        return pages.itemAt(shownIndex) as Loader;
+    }
 
-    implicitWidth: pageWidth
-    implicitHeight: pageHeight
+    // The first page to appear (opening from the notch or the timer pill) just shows; only later switches animate
+    property bool hasShown
 
-    Binding on pageWidth {
-        when: (root.view.currentItem as Loader)?.status === Loader.Ready
-        value: root.view.implicitWidth
+    onShownIndexChanged: {
+        if (shownIndex >= 0 && !hasShown)
+            Qt.callLater(() => hasShown = true);
+    }
+
+    function switchBy(delta: int): void {
+        screenState.dashboardTab = Math.max(0, Math.min(tabInfo.length - 1, screenState.dashboardTab + delta));
+    }
+
+    implicitWidth: shownPage?.implicitWidth ?? 0
+    implicitHeight: shownPage?.implicitHeight ?? 0
+
+    // Pages build asynchronously; show the chosen one as soon as it's ready
+    Binding on shownIndex {
+        when: root.currentPage?.status === Loader.Ready
+        value: root.screenState.dashboardTab
         restoreMode: Binding.RestoreNone
     }
 
-    Binding on pageHeight {
-        when: (root.view.currentItem as Loader)?.status === Loader.Ready
-        value: root.view.implicitHeight
-        restoreMode: Binding.RestoreNone
+    // Horizontal swipes (touchpad, or dragging the page) switch straight to the neighbouring tab
+    property real swipe
+
+    WheelHandler {
+        orientation: Qt.Horizontal
+        acceptedDevices: PointerDevice.TouchPad
+        onWheel: event => {
+            root.swipe += event.angleDelta.x;
+            if (Math.abs(root.swipe) > 240) {
+                root.switchBy(root.swipe < 0 ? 1 : -1);
+                root.swipe = 0;
+            }
+        }
+        onActiveChanged: root.swipe = 0
+    }
+
+    DragHandler {
+        target: null
+        xAxis.enabled: true
+        yAxis.enabled: false
+        onActiveChanged: {
+            if (!active && Math.abs(translation.x) > 80)
+                root.switchBy(translation.x < 0 ? 1 : -1);
+        }
     }
 
     // The tab strip is the notch's tile row (NotchMenu), which stays on top of this in the wrapper
@@ -50,105 +88,72 @@ Item {
         radius: Tokens.rounding.large
         color: "transparent"
 
-        Flickable {
-            id: view
+        Repeater {
+            id: pages
 
-            readonly property int currentIndex: root.screenState.dashboardTab
-            readonly property Item currentItem: {
-                repeater.count; // Trigger update on count change
-                return repeater.itemAt(currentIndex);
+            model: ScriptModel {
+                values: root.dashboardTabs
             }
 
-            anchors.fill: parent
+            // Only the chosen page and, for a short crossfade, the one it replaces exist; the tabs in between never show
+            delegate: Loader {
+                id: page
 
-            flickableDirection: Flickable.HorizontalFlick
+                required property int index
+                required property var modelData
+                readonly property bool shown: index === root.shownIndex
 
-            implicitWidth: currentItem?.implicitWidth ?? 0
-            implicitHeight: currentItem?.implicitHeight ?? 0
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
 
-            contentX: currentItem?.x ?? 0
-            contentWidth: row.implicitWidth
-            contentHeight: row.implicitHeight
+                active: index === root.screenState.dashboardTab || shown || opacity > 0
+                asynchronous: true // Built over a few frames, so the morph out of the notch doesn't stall
+                visible: opacity > 0
+                enabled: shown
+                opacity: shown ? 1 : 0
+                sourceComponent: modelData.component
 
-            onContentXChanged: {
-                if (!moving || !currentItem)
-                    return;
+                transform: Translate {
+                    x: page.slide
+                }
 
-                const x = contentX - currentItem.x;
-                if (x > currentItem.implicitWidth / 2)
-                    root.screenState.dashboardTab = Math.min(root.screenState.dashboardTab + 1, root.tabInfo.length - 1);
-                else if (x < -currentItem.implicitWidth / 2)
-                    root.screenState.dashboardTab = Math.max(root.screenState.dashboardTab - 1, 0);
-            }
+                // Incoming pages come from the side of the tab they replace; outgoing ones leave the other way
+                property real slide: shown ? 0 : (page.index > root.shownIndex ? 32 : -32)
 
-            onDragEnded: {
-                if (!currentItem)
-                    return;
+                Behavior on opacity {
+                    enabled: root.animate && root.hasShown
 
-                const x = contentX - currentItem.x;
-                if (x > currentItem.implicitWidth / 10)
-                    root.screenState.dashboardTab = Math.min(root.screenState.dashboardTab + 1, root.tabInfo.length - 1);
-                else if (x < -currentItem.implicitWidth / 10)
-                    root.screenState.dashboardTab = Math.max(root.screenState.dashboardTab - 1, 0);
-                else
-                    contentX = Qt.binding(() => currentItem?.x ?? 0);
-            }
-
-            RowLayout {
-                id: row
-
-                Repeater {
-                    id: repeater
-
-                    model: ScriptModel {
-                        values: root.dashboardTabs
+                    Anim {
+                        type: Anim.FastEffects
                     }
+                }
 
-                    delegate: Loader {
-                        id: paneLoader
+                Behavior on slide {
+                    enabled: root.animate && root.hasShown
 
-                        required property int index
-                        required property var modelData
-
-                        Layout.alignment: Qt.AlignTop
-
-                        asynchronous: true // Built over a few frames, so the morph out of the notch doesn't stall
-                        sourceComponent: modelData.component
-
-                        Component.onCompleted: active = Qt.binding(() => {
-                            if (index === view.currentIndex)
-                                return true;
-                            const vx = Math.floor(view.visibleArea.xPosition * view.contentWidth);
-                            const vex = Math.floor(vx + view.visibleArea.widthRatio * view.contentWidth);
-                            return (vx >= x && vx <= x + implicitWidth) || (vex >= x && vex <= x + implicitWidth);
-                        })
+                    Anim {
+                        type: Anim.FastSpatial
                     }
                 }
             }
-
-            Component {
-                id: performanceComponent
-
-                Performance {}
-            }
-
-            Component {
-                id: timerComponent
-
-                TimerTab {}
-            }
-
-            Component {
-                id: notesComponent
-
-                Notes {}
-            }
-
-            Behavior on contentX {
-                enabled: root.animate
-
-                Anim {}
-            }
         }
+    }
+
+    Component {
+        id: performanceComponent
+
+        Performance {}
+    }
+
+    Component {
+        id: timerComponent
+
+        TimerTab {}
+    }
+
+    Component {
+        id: notesComponent
+
+        Notes {}
     }
 }

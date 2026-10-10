@@ -33,15 +33,19 @@ Item {
     readonly property bool notchOpen: screenState.dashboardNotch && Config.dashboard.enabled && !fullOpen
     readonly property bool shouldBeActive: fullOpen || notchOpen
 
-    // How far the shape has dropped out of the border, on a spring: past 1 while it overshoots on the way in
-    property real drop: shouldBeActive ? 1 : 0
+    // How far the shape has dropped out of the border, on a spring: past 1 while it overshoots on the way in.
+    // Set in update(), so a new hover can reset it to closed before it drops again
+    property real drop
     readonly property real presence: Math.max(0, Math.min(1, drop))
     readonly property real stretch: Math.max(0, drop - 1) // The overshoot, spent stretching the shape like jelly
     // 0 = shown, 1 = hidden in the border (what the drawers' hover/mask logic expects)
     readonly property real offsetScale: 1 - presence
 
-    // 0 = small notch, 1 = full window. Closing keeps the current shape; it only resets while hidden
+    // 0 = small notch, 1 = full window. Closing keeps the current shape; once closed (or if a hover interrupts the
+    // close) everything resets to a fresh small notch, so a new hover never shows the full window
     property bool fullMode
+    property bool resetting // True only inside resetToNotch(): no animations, header and page unloaded
+    property bool opening // Whether drop is heading out (springy) or back in (quick); set with it in update()
     property real morph: fullMode ? 1 : 0
     readonly property real clampedMorph: Math.max(0, Math.min(1, morph))
     // Like offsetScale, but only for the full window (1 while just the notch is out). Drives the timer pill flight
@@ -83,13 +87,38 @@ Item {
         if (content.item?.implicitWidth > 0 && content.item?.implicitHeight > 0)
             pageSizes[screenState.dashboardTab] = pageSize;
     }
-    onFullOpenChanged: {
-        if (fullOpen)
+    // Runs from the change handlers, where the derived properties above may not have updated yet, so it works
+    // from screenState directly
+    function update(): void {
+        const enabled = Config.dashboard.enabled;
+        const full = screenState.dashboard && enabled;
+        const notch = screenState.dashboardNotch && enabled && !full;
+        if (full) {
             fullMode = true;
+        } else if (notch && fullMode) {
+            // A hover while the full window is still closing: start over from a clean notch, never from the window
+            resetToNotch();
+        }
+        opening = full || notch;
+        drop = opening ? 1 : 0;
     }
-    onNotchOpenChanged: {
-        if (notchOpen)
-            fullMode = false;
+
+    // Snaps to closed, small notch, nothing selected: size, morph and drop jump without animating, and the header
+    // and page are recreated from scratch. The last chosen tab stays in screenState for the next pick
+    function resetToNotch(): void {
+        if (resetting)
+            return;
+        resetting = true;
+        fullMode = false;
+        drop = 0;
+        resetting = false;
+    }
+
+    onFullOpenChanged: update()
+    onNotchOpenChanged: update()
+    onVisibleChanged: {
+        if (!visible)
+            resetToNotch();
     }
 
     visible: drop > 0
@@ -100,16 +129,18 @@ Item {
     implicitHeight: shapeHeight * presence + stretch * 60
 
     Behavior on drop {
+        enabled: !root.resetting
+
         SpringAnimation {
             // Springy on the way in, quick and settled on the way out
-            spring: root.shouldBeActive ? 3.2 : 5
-            damping: root.shouldBeActive ? 0.26 : 0.55
+            spring: root.opening ? 3.2 : 5
+            damping: root.opening ? 0.26 : 0.55
             epsilon: 0.002
         }
     }
 
     Behavior on morph {
-        enabled: root.visible
+        enabled: root.visible && !root.resetting
 
         SpringAnimation {
             spring: 3.4
@@ -119,7 +150,7 @@ Item {
     }
 
     Behavior on shapeWidth {
-        enabled: root.visible
+        enabled: root.visible && !root.resetting
 
         SpringAnimation {
             spring: 3.6
@@ -129,7 +160,7 @@ Item {
     }
 
     Behavior on shapeHeight {
-        enabled: root.visible
+        enabled: root.visible && !root.resetting
 
         SpringAnimation {
             spring: 3
@@ -151,7 +182,7 @@ Item {
         anchors.topMargin: root.notchPadding
 
         z: 1
-        active: root.shouldBeActive || root.visible
+        active: (root.shouldBeActive || root.visible) && !root.resetting
         opacity: Math.min(1, root.presence * 1.6)
 
         sourceComponent: NotchMenu {
@@ -177,7 +208,7 @@ Item {
         y: header.y + header.implicitHeaderHeight + Tokens.spacing.medium - (1 - reveal) * 24
 
         // Not loaded behind the small notch (its pages poll); created when a tile is picked
-        active: root.fullMode && (root.shouldBeActive || root.visible)
+        active: root.fullMode && (root.shouldBeActive || root.visible) && !root.resetting
         visible: reveal > 0
         enabled: root.fullOpen
         opacity: reveal * Math.min(1, root.presence * 1.4)
