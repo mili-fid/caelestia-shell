@@ -12,6 +12,7 @@ import qs.components
 import qs.components.containers
 import qs.services
 import qs.modules.bar
+import qs.modules.osd as Osd
 
 StyledWindow {
     id: root
@@ -309,6 +310,7 @@ StyledWindow {
             osd.transform: Matrix4x4 {
                 matrix: osdBg.deformMatrix
             }
+            osd.floating: root.hasFullscreen
             notifications.transform: Matrix4x4 {
                 matrix: notifsBg.deformMatrix
             }
@@ -375,6 +377,12 @@ StyledWindow {
         slot: topInfo.pillSlot
         fsProgress: root.fsTransitionProg
         borderHeight: root.topBorderBase
+    }
+
+    // The volume/brightness notch over a fullscreen window, as a floating pill on the overlay layer
+    Osd.FloatingPill {
+        screen: root.screen
+        osd: panels.osd
     }
 
     ShellState.ComponentRef {

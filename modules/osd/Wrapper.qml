@@ -18,6 +18,8 @@ Item {
     property bool hovered
     readonly property Brightness.Monitor monitor: Brightness.getMonitorForScreen(root.screen)
     property bool blocked // The dashboard shape is out: they share the spot, so this waits until it has gone
+    // A fullscreen window hides the border: the notch stays collapsed here and FloatingPill draws it instead
+    property bool floating
     readonly property bool shouldBeActive: screenState.osd && Config.osd.enabled && !blocked && !((screenState.dashboard || screenState.dashboardNotch) && Config.dashboard.enabled)
     // Same drop as the dashboard notch: a spring that overshoots past 1 on the way in, spent stretching the shape
     property real drop: shouldBeActive ? 1 : 0
@@ -55,12 +57,15 @@ Item {
             timer.restart();
     }
 
-    visible: drop > 0
+    // Grows out of the border's edge and outwards, like the dashboard notch
+    readonly property real shapeWidth: notchWidth * (0.6 + 0.4 * presence) + stretch * 120
+    readonly property real shapeHeight: notchHeight * presence + stretch * 60
+
+    visible: drop > 0 && !floating
     clip: true
 
-    // Grows out of the border's edge and outwards, like the dashboard notch
-    implicitWidth: notchWidth * (0.6 + 0.4 * presence) + stretch * 120
-    implicitHeight: notchHeight * presence + stretch * 60
+    implicitWidth: shapeWidth
+    implicitHeight: floating ? 0 : shapeHeight
 
     Behavior on drop {
         SpringAnimation {
@@ -124,7 +129,7 @@ Item {
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
 
-        active: root.shouldBeActive || root.visible
+        active: !root.floating && (root.shouldBeActive || root.visible)
         opacity: Math.max(0, root.presence * 2 - 1)
 
         sourceComponent: Content {
