@@ -25,6 +25,8 @@ CustomMouseArea {
 
     // Animated copy so the bar and number glide while the keys are held
     property real shownValue: value
+    // The icon and the percentage get equal slots, so the bar sits in the middle and the sides mirror
+    readonly property real slotWidth: Math.max(icon.implicitWidth, metrics.width)
 
     function onWheel(event: WheelEvent): void {
         if (kind === "brightness") {
@@ -50,7 +52,7 @@ CustomMouseArea {
         anchors.left: parent.left
         anchors.leftMargin: Tokens.padding.large + Tokens.padding.small
         anchors.verticalCenter: parent.verticalCenter
-        implicitWidth: icon.implicitWidth
+        implicitWidth: root.slotWidth
         implicitHeight: icon.implicitHeight
 
         MaterialIcon {
@@ -109,8 +111,8 @@ CustomMouseArea {
         anchors.right: parent.right
         anchors.rightMargin: Tokens.padding.large + Tokens.padding.small
         anchors.verticalCenter: parent.verticalCenter
-        width: metrics.width
-        horizontalAlignment: Text.AlignRight
+        width: root.slotWidth
+        horizontalAlignment: Text.AlignHCenter
         text: `${Math.round(root.shownValue * 100)}%`
         color: Colours.palette.m3onSurface
         font: Tokens.font.body.builders.medium.weight(Font.Medium).build()
