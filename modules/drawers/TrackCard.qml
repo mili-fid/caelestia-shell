@@ -4,25 +4,24 @@ import QtQuick
 import Quickshell.Services.Mpris
 import Caelestia.Config
 import qs.components
-import qs.components.effects
 import qs.services
 
-// Track-change card under the music widget (TopMedia). Its background is a blob in the drawers window
-// (trackBg in ContentWindow), so it drips out of the top border with the same concave shoulders as the notches.
-// Children are placed in window coordinates (this item is 0x0 at the window origin).
+// Track-change hint: a compact strip hanging under the music widget (TopMedia), right-aligned with it
+// and at most 280px wide. Its background is a blob (trackBlobs in ContentWindow), a little more transparent than
+// the border, joining it with the same concave shoulders. Children are placed in window coordinates (this item
+// is 0x0 at the window origin).
 //
-// Opening: the widget's thumbnail lifts out (the flying cover, with a shadow that peaks mid-flight) and grows
-// along a slight arc into the card's cover slot, while the shape springs down under the widget, narrow first
-// and widening as it falls, like a drop. The text slides down into place a moment later.
-// Closing: the text fades, then the shape pulls back up into the border while the cover shrinks back into the
-// thumbnail. A track change while out cross-fades the cover and text in place.
-// Shown ~3s per real track change (TrackWatcher), kept while hovered, click = play/pause. Queued while the
+// Calm motion, no overshoot: in ~220ms the thumbnail glides in a straight line and grows a little into the strip's
+// cover while the strip unfolds shallowly under it; the text fades in just after. Out in ~180ms: the text
+// fades, the strip folds back up and the cover returns onto the thumbnail. A track change while out
+// cross-fades the cover and text in place.
+// Shown ~2.5s per real track change (TrackWatcher), kept while hovered, click = play/pause. Queued while the
 // dashboard is out (dropped after 15s). In fullscreen it shows as a pill in the top-right corner (TrackCardPill).
 Item {
     id: root
 
     required property TopMedia media
-    required property real topY // Bottom edge of the top border, where the card hangs from
+    required property real topY // Bottom edge of the top border, where the strip hangs from
     property bool blocked
     property bool floating
     property bool pillHovered
@@ -37,40 +36,40 @@ Item {
     readonly property bool artInSync: (player?.trackTitle ?? "") === tracks.lastTitle
     property string artUrl
 
-    onLiveArtUrlChanged: {
-        if (artInSync)
-            artUrl = liveArtUrl;
-    }
-    onArtInSyncChanged: {
-        if (artInSync)
-            artUrl = liveArtUrl;
-    }
-
     property bool requested
     readonly property bool shouldShow: requested && !blocked
     readonly property bool hovered: floating ? pillHovered : shapeHover.hovered || coverHover.hovered
 
-    // Animation state: the shape's spring, the cover's flight and the text's slide
+    // Animation state: the strip's unfold, the cover's move and the text's fade
     property bool shapeOpen
+    property real presence: shapeOpen ? 1 : 0
     property real coverT
     property real textT
-    property real drop: shapeOpen ? 1 : 0
-    readonly property real presence: Math.max(0, Math.min(1, drop))
-    readonly property real stretch: Math.max(0, drop - 1)
     readonly property bool coverLifted: !floating && coverT > 0
 
-    readonly property int cardWidth: 340
-    readonly property int cardHeight: 96
+    readonly property int cardWidth: Math.min(280, Math.round(media.width))
+    readonly property int cardHeight: 48
     readonly property real cardRight: media.x + media.width
+    readonly property int inDuration: 220
+    readonly property int outDuration: 180
 
-    // Narrow at first and widening as it falls; right-aligned with the widget
-    readonly property real widthT: Math.max(0, Math.min(1, (presence - 0.1) / 0.8))
-    readonly property real shapeWidth: cardWidth * (0.45 + 0.55 * widthT) + stretch * 40
-    readonly property real shapeHeight: cardHeight * presence + stretch * 36
+    // Shallow drop: a little narrower while it unfolds
+    readonly property real shapeWidth: cardWidth * (0.85 + 0.15 * presence)
+    readonly property real shapeHeight: cardHeight * presence
 
     function togglePlaying(): void {
         if (player?.canTogglePlaying)
             player.togglePlaying();
+    }
+
+    onLiveArtUrlChanged: {
+        if (artInSync)
+            artUrl = liveArtUrl;
+    }
+
+    onArtInSyncChanged: {
+        if (artInSync)
+            artUrl = liveArtUrl;
     }
 
     onShouldShowChanged: {
@@ -98,11 +97,10 @@ Item {
             staleTimer.restart();
     }
 
-    Behavior on drop {
-        SpringAnimation {
-            spring: root.shapeOpen ? 3.2 : 5
-            damping: root.shapeOpen ? 0.26 : 0.55
-            epsilon: 0.002
+    Behavior on presence {
+        NumberAnimation {
+            duration: root.shapeOpen ? root.inDuration : root.outDuration - 30
+            easing.type: root.shapeOpen ? Easing.OutCubic : Easing.InOutCubic
         }
     }
 
@@ -122,7 +120,7 @@ Item {
     Timer {
         id: hideTimer
 
-        interval: 3000
+        interval: 2500
         onTriggered: root.requested = false
     }
 
@@ -143,51 +141,57 @@ Item {
         ScriptAction {
             script: root.shapeOpen = true
         }
-        Anim {
+        NumberAnimation {
             target: root
             property: "coverT"
             to: 1
-            type: Anim.DefaultSpatial
+            duration: root.inDuration
+            easing.type: Easing.OutCubic
         }
         SequentialAnimation {
             PauseAnimation {
-                duration: 140
+                duration: 60
             }
-            Anim {
+            NumberAnimation {
                 target: root
                 property: "textT"
                 to: 1
-                type: Anim.DefaultEffects
+                duration: root.inDuration - 60
+                easing.type: Easing.OutCubic
             }
         }
     }
 
-    SequentialAnimation {
+    ParallelAnimation {
         id: closeAnim
 
-        Anim {
+        NumberAnimation {
             target: root
             property: "textT"
             to: 0
-            duration: 110
-            type: Anim.FastEffects
+            duration: 80
         }
-        ScriptAction {
-            script: root.shapeOpen = false
-        }
-        // No overshoot here: the cover must land exactly on the thumbnail
-        Anim {
-            target: root
-            property: "coverT"
-            to: 0
-            type: Anim.Emphasized
+        SequentialAnimation {
+            PauseAnimation {
+                duration: 30
+            }
+            ScriptAction {
+                script: root.shapeOpen = false
+            }
+            NumberAnimation {
+                target: root
+                property: "coverT"
+                to: 0
+                duration: root.outDuration - 30
+                easing.type: Easing.InOutCubic
+            }
         }
     }
 
     Item {
         id: shapeItem
 
-        visible: !root.floating && root.drop > 0
+        visible: !root.floating && root.presence > 0
         x: root.cardRight - root.shapeWidth
         y: root.topY
         width: root.shapeWidth
@@ -218,7 +222,8 @@ Item {
         }
     }
 
-    // The shared element: starts exactly on the widget's thumbnail (which hides meanwhile) and lands in the card
+    // The shared element: starts exactly on the widget's thumbnail (which hides meanwhile), glides in a straight line
+    // into the strip and grows a little, keeping the thumbnail's corner shape
     Item {
         id: flyCover
 
@@ -227,28 +232,18 @@ Item {
         readonly property real fromY: root.media.y + (root.media.height - root.media.artSize) / 2
         readonly property real toX: root.cardRight - root.cardWidth + content.coverX
         readonly property real toY: root.topY + content.coverY
-        // Falls a little ahead of its sideways move, so the path arcs out of the border
-        readonly property real tY: t < 1 ? 1 - Math.pow(1 - Math.max(0, t), 1.6) : t
 
         visible: root.coverLifted
         x: fromX + (toX - fromX) * t
-        y: fromY + (toY - fromY) * tY
+        y: fromY + (toY - fromY) * t
         width: root.media.artSize + (content.artSize - root.media.artSize) * t
         height: width
 
-        Elevation {
-            anchors.fill: parent
-            radius: cover.radius
-            level: 3
-            opacity: Math.sin(Math.PI * Math.max(0, Math.min(1, flyCover.t))) * 0.9
-        }
-
         TrackCover {
-            id: cover
-
             anchors.fill: parent
             artUrl: root.artUrl
-            radius: root.media.artRadius + (Tokens.rounding.medium - root.media.artRadius) * Math.max(0, Math.min(1, flyCover.t))
+            radius: root.media.artRadius * parent.width / root.media.artSize
+            loadSize: 72
         }
 
         HoverHandler {

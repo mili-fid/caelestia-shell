@@ -229,16 +229,6 @@ StyledWindow {
             deformAmount: 0.15
         }
 
-        // Track-change card, dripping from the border under the music widget (TrackCard)
-        PanelBg {
-            id: trackBg
-
-            panel: trackCard.shape
-            x: trackCard.shape.x
-            y: trackCard.shape.y
-            implicitHeight: trackCard.floating ? 0 : panel.height
-        }
-
         PanelBg {
             id: notifsBg
 
@@ -268,6 +258,46 @@ StyledWindow {
             Behavior on extraHeight {
                 Anim {}
             }
+        }
+    }
+
+    // Track hint background (TrackCard): its own blob group, so it can be a little more transparent than the
+    // border. A copy of the border strip around it gives the same concave shoulders; that copy sits above the
+    // border's edge, where this layer is clipped off, so the real border is never drawn twice
+    Item {
+        id: trackBlobs
+
+        y: root.topBorderThickness
+        width: parent.width
+        height: parent.height - y
+        clip: true
+        visible: trackCard.shape.visible
+        opacity: root.surfaceColour.a * 0.8
+        layer.enabled: true
+
+        BlobGroup {
+            id: trackBlobGroup
+
+            color: root.surfaceColour
+            smoothing: root.contentItem.Config.border.smoothing
+        }
+
+        BlobRect {
+            group: trackBlobGroup
+            x: trackCard.shape.x - 80
+            y: -60
+            implicitWidth: trackCard.shape.width + 160
+            implicitHeight: 60
+            deformScale: 0
+        }
+
+        BlobRect {
+            group: trackBlobGroup
+            x: trackCard.shape.x
+            implicitWidth: trackCard.shape.width
+            implicitHeight: trackCard.shape.height
+            radius: Tokens.rounding.large
+            deformScale: 0 // Calm: no wobble
         }
     }
 
@@ -398,10 +428,6 @@ StyledWindow {
         topY: root.topBorderThickness
         blocked: panels.dashboard.visible
         floating: root.hasFullscreen
-
-        shape.transform: Matrix4x4 {
-            matrix: trackBg.deformMatrix
-        }
     }
 
     // Above the panels, so it can fly in and out of the dashboard

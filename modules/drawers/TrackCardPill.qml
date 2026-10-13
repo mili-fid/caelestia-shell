@@ -9,8 +9,8 @@ import qs.components.containers
 import qs.components.effects
 import qs.services
 
-// The track card over a fullscreen window: the border is hidden, so it floats as a pill in the top-right corner
-// on its own overlay surface, with the cover drawn inside. Never focused; only the pill itself takes input
+// The track hint over a fullscreen window: the border is hidden, so it floats as a small, slightly see-through
+// pill in the top-right corner on its own overlay surface, with the cover drawn inside. Never focused; only the pill itself takes input
 // (hover keeps it, click = play/pause). State, timer, spring and text slide come from the TrackCard.
 StyledWindow {
     id: root
@@ -20,7 +20,7 @@ StyledWindow {
     readonly property int gap: contentItem.Tokens.padding.large
 
     name: "track-card-fullscreen"
-    visible: card.floating && card.drop > 0
+    visible: card.floating && card.presence > 0
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
@@ -35,15 +35,15 @@ StyledWindow {
             card.pillHovered = false;
     }
 
-    // Fixed size with room for the overshoot and shadow, so the surface isn't resized every frame
-    implicitWidth: card.cardWidth + 40 + gap * 2
-    implicitHeight: card.cardHeight + 36 + gap * 2
+    // Fixed size with room for the faint shadow, so the surface isn't resized every frame
+    implicitWidth: 280 + gap * 2
+    implicitHeight: card.cardHeight + gap * 2
 
     Elevation {
         anchors.fill: pill
         radius: pill.radius
-        level: 2
-        opacity: root.card.presence
+        level: 1
+        opacity: root.card.presence * 0.6
     }
 
     StyledRect {
@@ -54,8 +54,8 @@ StyledWindow {
         y: root.gap
         width: root.card.shapeWidth
         height: root.card.shapeHeight
-        radius: Math.min(height / 2, Tokens.rounding.extraLarge)
-        color: Colours.tPalette.m3surface
+        radius: Math.min(height / 2, Tokens.rounding.large)
+        color: Qt.alpha(Colours.tPalette.m3surface, Colours.tPalette.m3surface.a * 0.8)
         clip: true
 
         HoverHandler {
@@ -72,11 +72,12 @@ StyledWindow {
             anchors.right: parent.right
             width: root.card.cardWidth
             height: root.card.cardHeight
-            opacity: Math.max(0, root.card.presence * 2 - 1)
             title: root.card.watcher.lastTitle
             artist: root.card.watcher.lastArtist
             artUrl: root.card.artUrl
             showCover: true
+            coverRadius: Tokens.rounding.small * 34 / 22 // The thumbnail's corner shape, at this size
+            opacity: root.card.presence
             reveal: root.card.textT
         }
     }
