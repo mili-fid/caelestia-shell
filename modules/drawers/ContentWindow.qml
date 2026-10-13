@@ -112,6 +112,15 @@ StyledWindow {
         bar: bar
         panels: panels
         win: root
+
+        // The track card under the music widget takes hover and clicks
+        Region {
+            x: trackCard.shape.x
+            y: trackCard.shape.y
+            width: trackCard.shape.width
+            height: trackCard.shape.visible ? trackCard.shape.height : 0
+            intersection: Intersection.Subtract
+        }
     }
 
     HyprlandFocusGrab {
@@ -218,6 +227,16 @@ StyledWindow {
 
             panel: panels.osd
             deformAmount: 0.15
+        }
+
+        // Track-change card, dripping from the border under the music widget (TrackCard)
+        PanelBg {
+            id: trackBg
+
+            panel: trackCard.shape
+            x: trackCard.shape.x
+            y: trackCard.shape.y
+            implicitHeight: trackCard.floating ? 0 : panel.height
         }
 
         PanelBg {
@@ -355,6 +374,8 @@ StyledWindow {
     // Now playing, on the right of the top border. Above the panels so its buttons get input;
     // capped so it never reaches the dashboard or the date/time row and its timer pill
     TopMedia {
+        id: topMedia
+
         readonly property real rightEdge: root.width - root.borderThickness - 82
         readonly property real infoRight: topInfo.x + (topInfo.width + topInfo.reserved) / 2
         readonly property real dashRight: panels.dashboard.x + bar.implicitWidth + (panels.dashboard.width + panels.dashboard.reservedWidth) / 2
@@ -366,6 +387,21 @@ StyledWindow {
         borderHeight: root.topBorderBase
         maxWidth: rightEdge - Math.max(infoRight, dashRight) - Tokens.spacing.large
         shownOpacity: 1 - root.fsTransitionProg
+        coverLifted: trackCard.coverLifted
+    }
+
+    // Track-change card: drips from the border under the music widget, its cover flying out of the thumbnail
+    TrackCard {
+        id: trackCard
+
+        media: topMedia
+        topY: root.topBorderThickness
+        blocked: panels.dashboard.visible
+        floating: root.hasFullscreen
+
+        shape.transform: Matrix4x4 {
+            matrix: trackBg.deformMatrix
+        }
     }
 
     // Above the panels, so it can fly in and out of the dashboard
@@ -383,6 +419,12 @@ StyledWindow {
     Osd.FloatingPill {
         screen: root.screen
         osd: panels.osd
+    }
+
+    // The track card over a fullscreen window, as a pill in the top-right corner
+    TrackCardPill {
+        screen: root.screen
+        card: trackCard
     }
 
     ShellState.ComponentRef {

@@ -24,6 +24,7 @@ Item {
     property real shownOpacity: 1
     property real startupProgress: 0
     property real maxWidth: 400 // Room between the date/time (+ timer pill) / dashboard and the right edge
+    property bool coverLifted // The track card's flying cover stands in for the thumbnail while it is out
 
     readonly property var player: Players.active
     readonly property bool hasTrack: !!player && !!(player.trackTitle || player.trackArtist)
@@ -205,6 +206,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     implicitWidth: root.artSize
                     implicitHeight: root.artSize
+                    opacity: root.coverLifted ? 0 : 1
 
                     // Note when idle or without art
                     MaterialIcon {
