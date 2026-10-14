@@ -1,0 +1,8 @@
+# Leftover and temporary files: never save these
+*.bak
+*~
+*.swp
+*.orig
+*.rej
+.directory
+.DS_Store
