@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Wayland
 import Caelestia.Config
 import Caelestia.Services
@@ -9,18 +10,20 @@ import Caelestia.I18n
 import qs.components
 import qs.components.containers
 import qs.services
+import qs.modules.bar.popouts as BarPopouts
 
 // Now-playing row on the right of the top border: [cover] Title · Artist [visualiser] [prev] [play/pause] [next].
 // Uses the shared MPRIS service (Players), same as the dashboard's Media tab. Everything is bound to the
 // player's properties, which Quickshell updates from MPRIS PropertiesChanged signals (no polling).
 // Button presses update the UI optimistically and then follow the player's real state.
-// Clicking the cover or the text opens the dashboard on the Media tab.
+// Clicking the cover toggles play/pause; clicking the title · artist brings the playing app to the front.
 Item {
     id: root
 
     required property ShellScreen screen
     required property ScreenState screenState
     required property int borderHeight
+    required property BarPopouts.Wrapper popouts
     property real shownOpacity: 1
     property real startupProgress: 0
     property real maxWidth: 400 // Room between the date/time (+ timer pill) / dashboard and the right edge
@@ -94,6 +97,72 @@ Item {
             player?.next();
         else
             player?.previous();
+    }
+
+    // Brings the player's app to the front: MPRIS raise first, then Hyprland focus if the raise did nothing
+    // (browsers usually accept Raise but ignore it on Wayland). Silent when no window matches
+    function focusSource(): void {
+        const p = player;
+        if (!p)
+            return;
+        // Out of the way, so the window isn't left behind them
+        popouts.hasCurrent = false;
+        screenState.dashboard = false;
+        screenState.dashboardNotch = false;
+
+        raiseCheck.target = sourceWindow(p);
+        raiseCheck.before = Hyprland.activeToplevel;
+        if (p.canRaise) {
+            p.raise();
+            raiseCheck.restart();
+        } else {
+            raiseCheck.focusTarget();
+        }
+    }
+
+    // The player's window: class matched against the desktop entry, then the identity ("Mozilla firefox" ->
+    // firefox, com.example.App -> app). With several (browser windows), the one showing the track, else the
+    // most recently focused
+    function sourceWindow(p: var): var {
+        const norm = s => (s ?? "").toLowerCase().replace(/[^a-z0-9.]/g, "");
+        const keys = [p.desktopEntry, p.identity, ...(p.identity ?? "").split(/\s+/)].map(norm).filter(k => k.length > 1);
+        const last = s => s.slice(s.lastIndexOf(".") + 1);
+        const matches = cls => keys.some(k => k === cls || last(k) === last(cls));
+
+        const wins = Hyprland.toplevels.values.filter(t => {
+            const ipc = t.lastIpcObject;
+            return matches(norm(ipc?.class)) || matches(norm(ipc?.initialClass));
+        });
+        if (wins.length < 2)
+            return wins[0] ?? null;
+        const track = (p.trackTitle ?? "").toLowerCase();
+        const showing = track ? wins.filter(t => t.title.toLowerCase().includes(track)) : [];
+        const pool = showing.length > 0 ? showing : wins;
+        return pool.reduce((a, b) => (b.lastIpcObject?.focusHistoryID ?? 1e9) < (a.lastIpcObject?.focusHistoryID ?? 1e9) ? b : a);
+    }
+
+    // Gives the MPRIS raise a moment; if focus didn't move, focus the window through Hyprland
+    // (focusing a window also switches to its workspace)
+    Timer {
+        id: raiseCheck
+
+        property var target
+        property var before
+
+        function focusTarget(): void {
+            if (target?.address && target !== Hyprland.activeToplevel)
+                Hypr.dispatch(Hypr.usingLua ? `hl.dsp.focus({ window = "address:0x${target.address}" })` : `focuswindow address:0x${target.address}`);
+            target = null;
+            before = null;
+        }
+
+        interval: 350
+        onTriggered: {
+            if (Hyprland.activeToplevel === before)
+                focusTarget();
+            else
+                target = before = null; // The raise worked
+        }
     }
 
     Connections {
@@ -174,9 +243,16 @@ Item {
                 cursorShape: Qt.PointingHandCursor
             }
 
+            // Title · artist focuses the source app; the rest (cover) toggles play/pause
             TapHandler {
                 enabled: root.hasTrack
-                onTapped: root.togglePlaying()
+                onTapped: eventPoint => {
+                    const pos = textBox.mapFromItem(info, eventPoint.position);
+                    if (textBox.contains(pos))
+                        root.focusSource();
+                    else
+                        root.togglePlaying();
+                }
             }
 
             Row {
@@ -255,6 +331,7 @@ Item {
                     property real swapOpacity: 1
                     readonly property bool overflowing: full.implicitWidth > width + 1
                     readonly property bool scrolling: overflowing && infoHover.hovered
+                    readonly property bool linkHovered: textHover.hovered && root.hasTrack
 
                     anchors.verticalCenter: parent.verticalCenter
                     implicitWidth: root.hasTrack ? Math.min(full.implicitWidth, root.textCap) : Math.min(idleText.implicitWidth, root.textCap)
@@ -265,6 +342,26 @@ Item {
                         NumberAnimation {
                             duration: root.swap
                             easing.type: Easing.OutCubic
+                        }
+                    }
+
+                    HoverHandler {
+                        id: textHover
+                    }
+
+                    // Thin primary underline while hovered: the text is a link to the playing app
+                    Rectangle {
+                        y: Math.round(parent.height / 2 + fullTitle.implicitHeight / 2)
+                        width: parent.width
+                        height: 1
+                        radius: 0.5
+                        color: Colours.palette.m3primary
+                        opacity: textBox.linkHovered ? 0.8 : 0
+
+                        Behavior on opacity {
+                            NumberAnimation {
+                                duration: root.fast
+                            }
                         }
                     }
 
@@ -576,7 +673,7 @@ Item {
     component ArtistText: StyledText {
         anchors.verticalCenter: parent?.verticalCenter
         text: root.shownArtist
-        color: Colours.palette.m3onSurfaceVariant
+        color: textBox.linkHovered ? Colours.palette.m3onSurface : Colours.palette.m3onSurfaceVariant
         font: Tokens.font.body.medium
     }
 

@@ -414,6 +414,7 @@ StyledWindow {
         y: Math.round((root.topBorderBase - height) / 2)
         screen: root.screen
         screenState: root.screenState
+        popouts: panels.popouts
         borderHeight: root.topBorderBase
         maxWidth: rightEdge - Math.max(infoRight, dashRight) - Tokens.spacing.large
         shownOpacity: 1 - root.fsTransitionProg

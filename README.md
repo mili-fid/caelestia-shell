@@ -83,7 +83,7 @@ Hovering the top shows a small notch with live tiles; clicking a tile grows it i
 
 | File | | What it does |
 |---|---|---|
-| `modules/drawers/TopMedia.qml` | NEW | Now playing in the top border: cover, title · artist, small visualiser, previous / play-pause / next |
+| `modules/drawers/TopMedia.qml` | NEW | Now playing in the top border: cover, title · artist, small visualiser, previous / play-pause / next. Click the cover to play/pause; click the title · artist to bring the app that's playing to the front (switches to its workspace) |
 
 ### Track card (popup when the song changes)
 
@@ -125,7 +125,8 @@ Each milestone is a named point in time I can look at or go back to:
 | `before-notch` | The last version before the notch dashboard |
 | `notch-final` | Notch dashboard finished |
 | `track-card-big` | First (big) track card |
-| `track-card` | Small track card, right-aligned (current look) |
+| `track-card` | Small track card, right-aligned |
+| `music-source-click` | Clicking the song title in the music widget opens the app that's playing it |
 
 On GitHub: click the **tags** button next to the branch name to see them.
 
@@ -163,6 +164,7 @@ First save the current state, just in case: `backup "before going back"`.
 
 ## Last big changes
 
+- **2026-10-15**: Music widget: click the song title to jump to the app that's playing it.
 - **2026-10-14**: Added this guide, milestone names (tags) and a `.gitignore`.
 - **2026-10-13**: Track card: a small card under the music widget when the song changes.
 - **2026-10-11**: Volume/brightness popup floats as a pill over fullscreen windows.
