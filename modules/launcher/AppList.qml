@@ -56,7 +56,7 @@ StyledListView {
 
     model: ScriptModel {
         values: root.resultsForText(root.displayText)
-        onValuesChanged: root.currentIndex = 0
+        onValuesChanged: Qt.callLater(() => { root.currentIndex = 0; })
     }
 
     spacing: Tokens.spacing.small
